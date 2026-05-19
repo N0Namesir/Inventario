@@ -22,7 +22,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <CarritoProvider>
-      <Routes>
+        <Routes>
         <Route path="/"        element={<RootRedirect />} />
         <Route path="/login"   element={<Login />} />
 
@@ -65,7 +65,7 @@ export default function App() {
         } />
 
         <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
+        </Routes>
       </CarritoProvider>
     </BrowserRouter>
   );

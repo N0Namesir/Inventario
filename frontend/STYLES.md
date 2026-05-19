@@ -132,9 +132,49 @@ Ejemplo: `flex items-center gap-4 px-5 py-3 bg-surface-700 border border-surface
 
 ---
 
-## Páginas Pendientes de Migrar (Admin / SuperAdmin)
+## Patrones Admin / SuperAdmin
 
-- `pages/admin/Inventario.jsx` — CRUD de productos, tabla con acciones
-- `pages/admin/Pedidos.jsx` — gestión de órdenes con cambio de estado
-- `pages/superadmin/Usuarios.jsx` — tabla de usuarios con eliminar
-- `pages/superadmin/Reportes.jsx` — tarjetas de estadísticas y tabla de inventario
+### Tablas
+Todas las tablas usan el mismo patrón de contenedor:
+```
+bg-surface-800 border border-surface-700 rounded-xl overflow-hidden
+└── overflow-x-auto (para scroll en mobile)
+    └── table w-full text-sm
+        thead: border-b border-surface-700 text-slate-500 text-xs uppercase tracking-wide
+        tbody: divide-y divide-surface-700
+        tr hover: hover:bg-surface-700/50 transition-colors
+```
+
+Columnas opcionales en mobile: `hidden sm:table-cell` / `hidden md:table-cell`
+
+### Tarjetas de Estadísticas
+```jsx
+<div className={`bg-surface-800 border ${colorBorder} rounded-xl px-5 py-5`}>
+  <p className="text-slate-500 text-xs uppercase tracking-wide">{titulo}</p>
+  <p className={`text-2xl font-bold ${colorNum}`}>{valor}</p>
+</div>
+```
+Grid: `grid grid-cols-2 lg:grid-cols-4 gap-4`
+
+### Botones de Acción (en tablas)
+```
+Editar:   bg-warning-500/10 hover:bg-warning-500/20 text-warning-400 border border-warning-500/30
+Eliminar: bg-danger-500/10  hover:bg-danger-500/20  text-danger-400  border border-danger-500/30
+Completar: bg-success-500/10 hover:bg-success-500/20 text-success-500 border border-success-500/30
+```
+Tamaño: `px-3 py-1.5 rounded-lg text-xs font-medium`
+
+### Badges de Rol (`Usuarios.jsx`)
+```js
+const badgeRol = {
+  superadmin: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
+  admin:      'bg-cyan-400/10   text-cyan-400   border-cyan-400/30',
+  cliente:    'bg-success-500/10 text-success-500 border-success-500/30',
+};
+```
+
+### Fila destacada (usuario actual / sin stock)
+```
+Usuario actual: bg-cyan-400/5 (sin hover)
+Sin stock:      bg-danger-500/5 (sin hover)
+```

@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
 import Modal from '../../components/Modal';
 import { useCarrito } from '../../context/CarritoContext';
-
-const API = 'http://localhost:5000';
+import { API } from '../../config';
 
 function StockBadge({ disponible, enCarrito }) {
   if (disponible === 0)

@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import { useCarrito } from '../../context/CarritoContext';
-
-const API = 'http://localhost:5000';
+import { API } from '../../config';
 
 const METODOS = [
   { id: 'credito',       label: 'Crédito',      icon: '💳' },

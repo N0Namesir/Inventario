@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
-
-const API = 'http://localhost:5000';
+import { API } from '../../config';
 
 const badgeEstado = {
   pendiente:  'bg-warning-500/10 text-warning-400 border-warning-500/30',

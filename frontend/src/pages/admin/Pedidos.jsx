@@ -1,20 +1,26 @@
 import { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
+import { API } from '../../config';
 
-const API = 'http://localhost:5000';
-
-const colorEstado = {
-  pendiente:  { bg: '#fff3cd', color: '#856404', border: '#ffc107' },
-  completada: { bg: '#d4edda', color: '#155724', border: '#c3e6cb' },
-  cancelada:  { bg: '#f8d7da', color: '#721c24', border: '#f5c6cb' },
+const badgeEstado = {
+  pendiente:  'bg-warning-500/10 text-warning-400 border-warning-500/30',
+  completada: 'bg-success-500/10 text-success-500 border-success-500/30',
+  cancelada:  'bg-danger-500/10  text-danger-400  border-danger-500/30',
 };
+
+const STATS = [
+  { key: 'total',       label: 'Total',       colorNum: 'text-cyan-400',    colorBorder: 'border-cyan-400/40'    },
+  { key: 'pendientes',  label: 'Pendientes',  colorNum: 'text-warning-400', colorBorder: 'border-warning-500/40' },
+  { key: 'completadas', label: 'Completadas', colorNum: 'text-success-500', colorBorder: 'border-success-500/40' },
+  { key: 'canceladas',  label: 'Canceladas',  colorNum: 'text-danger-400',  colorBorder: 'border-danger-500/40'  },
+];
 
 export default function Pedidos() {
   const [ordenes,  setOrdenes]  = useState([]);
   const [cargando, setCargando] = useState(false);
   const [error,    setError]    = useState('');
 
-  const token = localStorage.getItem('token');
+  const token   = localStorage.getItem('token');
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 
   useEffect(() => {
@@ -31,9 +37,7 @@ export default function Pedidos() {
       body: JSON.stringify({ estado: nuevoEstado })
     });
     if (res.ok) {
-      setOrdenes(prev =>
-        prev.map(o => o.id === ordenId ? { ...o, estado: nuevoEstado } : o)
-      );
+      setOrdenes(prev => prev.map(o => o.id === ordenId ? { ...o, estado: nuevoEstado } : o));
     } else {
       const err = await res.json();
       setError(err.error || 'Error al actualizar');
@@ -41,8 +45,8 @@ export default function Pedidos() {
   };
 
   const resumen = {
-    total:      ordenes.length,
-    pendientes: ordenes.filter(o => o.estado === 'pendiente').length,
+    total:       ordenes.length,
+    pendientes:  ordenes.filter(o => o.estado === 'pendiente').length,
     completadas: ordenes.filter(o => o.estado === 'completada').length,
     canceladas:  ordenes.filter(o => o.estado === 'cancelada').length,
   };
@@ -50,87 +54,79 @@ export default function Pedidos() {
   return (
     <>
       <Navbar />
-      <div style={{ padding: '40px', fontFamily: 'sans-serif', maxWidth: '900px', margin: 'auto' }}>
-        <h2>Gestión de Pedidos</h2>
+      <main className="flex-1 bg-navy-800 px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl font-semibold text-slate-100 mb-6">Gestión de Pedidos</h2>
 
-        {/* Tarjetas de resumen */}
-        <div style={{ display: 'flex', gap: '16px', marginBottom: '30px', flexWrap: 'wrap' }}>
-          {[
-            { label: 'Total',       valor: resumen.total,       color: '#007bff' },
-            { label: 'Pendientes',  valor: resumen.pendientes,  color: '#ffc107' },
-            { label: 'Completadas', valor: resumen.completadas, color: '#28a745' },
-            { label: 'Canceladas',  valor: resumen.canceladas,  color: '#dc3545' },
-          ].map(t => (
-            <div key={t.label} style={{
-              flex: 1, minWidth: '120px', background: 'white',
-              border: `2px solid ${t.color}`, borderRadius: '8px',
-              padding: '16px', textAlign: 'center'
-            }}>
-              <p style={{ margin: '0 0 4px', color: '#666', fontSize: '12px', textTransform: 'uppercase' }}>{t.label}</p>
-              <p style={{ margin: 0, fontSize: '28px', fontWeight: 'bold', color: t.color }}>{t.valor}</p>
+          {/* Tarjetas de resumen */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {STATS.map(s => (
+              <div key={s.key} className={`bg-surface-800 border ${s.colorBorder} rounded-xl px-5 py-4 text-center`}>
+                <p className="text-slate-500 text-xs uppercase tracking-wide mb-1 m-0">{s.label}</p>
+                <p className={`text-3xl font-bold m-0 ${s.colorNum}`}>{resumen[s.key]}</p>
+              </div>
+            ))}
+          </div>
+
+          {error && (
+            <p className="text-danger-400 text-sm bg-danger-500/10 border border-danger-500/30 rounded-lg px-3 py-2 mb-4">
+              {error}
+            </p>
+          )}
+
+          {cargando && (
+            <div className="flex items-center gap-2 text-slate-400 py-8">
+              <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+              </svg>
+              Cargando pedidos...
             </div>
-          ))}
-        </div>
+          )}
 
-        {error    && <p style={{ color: 'red' }}>{error}</p>}
-        {cargando && <p style={{ color: '#666' }}>Cargando pedidos...</p>}
+          {ordenes.length === 0 && !cargando && (
+            <div className="bg-surface-800 border border-surface-700 rounded-xl p-16 text-center text-slate-500 text-sm">
+              Aún no hay pedidos registrados.
+            </div>
+          )}
 
-        {ordenes.length === 0 && !cargando && (
-          <p style={{ color: '#666', textAlign: 'center', padding: '40px' }}>
-            Aún no hay pedidos registrados.
-          </p>
-        )}
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {ordenes.map(orden => {
-            const estilos = colorEstado[orden.estado] || colorEstado.pendiente;
-            return (
-              <div key={orden.id} style={{
-                border: '1px solid #ddd', borderRadius: '8px',
-                overflow: 'hidden', boxShadow: '0 2px 6px rgba(0,0,0,0.06)'
-              }}>
+          <div className="flex flex-col gap-4">
+            {ordenes.map(orden => (
+              <div key={orden.id} className="bg-surface-800 border border-surface-700 rounded-xl overflow-hidden">
                 {/* Cabecera */}
-                <div style={{
-                  background: '#f8f9fa', padding: '14px 20px',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'
-                }}>
-                  <div>
-                    <strong>Orden #{orden.id}</strong>
-                    <span style={{ marginLeft: '12px', color: '#555', fontSize: '14px' }}>
-                      👤 {orden.cliente_nombre}
+                <div className="bg-surface-700 px-5 py-3 flex flex-wrap justify-between items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <span className="font-semibold text-slate-100 text-sm">Orden #{orden.id}</span>
+                    <span className="text-slate-300 text-sm flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      {orden.cliente_nombre}
                     </span>
-                    <span style={{ marginLeft: '12px', color: '#999', fontSize: '12px' }}>
-                      {new Date(orden.created_at).toLocaleString()}
+                    <span className="text-slate-500 text-xs">
+                      {new Date(orden.created_at).toLocaleString('es-MX', {
+                        day: '2-digit', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                      })}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <strong>${parseFloat(orden.total).toFixed(2)}</strong>
-                    <span style={{
-                      background: estilos.bg, color: estilos.color,
-                      border: `1px solid ${estilos.border}`,
-                      padding: '3px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold'
-                    }}>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-slate-100">${parseFloat(orden.total).toFixed(2)}</span>
+                    <span className={`badge-estado ${badgeEstado[orden.estado] || badgeEstado.pendiente}`}>
                       {orden.estado.toUpperCase()}
                     </span>
-
-                    {/* Botones de acción solo si está pendiente */}
                     {orden.estado === 'pendiente' && (
                       <>
                         <button
                           onClick={() => cambiarEstado(orden.id, 'completada')}
-                          style={{
-                            background: '#28a745', color: 'white', border: 'none',
-                            padding: '4px 12px', cursor: 'pointer', borderRadius: '4px', fontSize: '13px'
-                          }}
+                          className="bg-success-500/10 hover:bg-success-500/20 text-success-500 border border-success-500/30 px-3 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer"
                         >
                           Completar
                         </button>
                         <button
                           onClick={() => cambiarEstado(orden.id, 'cancelada')}
-                          style={{
-                            background: '#dc3545', color: 'white', border: 'none',
-                            padding: '4px 12px', cursor: 'pointer', borderRadius: '4px', fontSize: '13px'
-                          }}
+                          className="bg-danger-500/10 hover:bg-danger-500/20 text-danger-400 border border-danger-500/30 px-3 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer"
                         >
                           Cancelar
                         </button>
@@ -140,23 +136,25 @@ export default function Pedidos() {
                 </div>
 
                 {/* Items */}
-                <div style={{ padding: '12px 20px', fontSize: '14px' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <div className="px-5 py-3 overflow-x-auto">
+                  <table className="w-full text-sm">
                     <thead>
-                      <tr style={{ borderBottom: '1px solid #eee', color: '#666' }}>
-                        <th style={{ textAlign: 'left', paddingBottom: '6px' }}>Producto</th>
-                        <th style={{ textAlign: 'right', paddingBottom: '6px' }}>Cant.</th>
-                        <th style={{ textAlign: 'right', paddingBottom: '6px' }}>Precio unit.</th>
-                        <th style={{ textAlign: 'right', paddingBottom: '6px' }}>Subtotal</th>
+                      <tr className="border-b border-surface-700 text-slate-500 text-xs">
+                        <th className="text-left pb-2 font-medium">Producto</th>
+                        <th className="text-right pb-2 font-medium">Cant.</th>
+                        <th className="text-right pb-2 font-medium hidden sm:table-cell">Precio unit.</th>
+                        <th className="text-right pb-2 font-medium">Subtotal</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-surface-700">
                       {orden.items.map((item, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                          <td style={{ padding: '5px 0' }}>{item.nombre_producto}</td>
-                          <td style={{ textAlign: 'right' }}>{item.cantidad}</td>
-                          <td style={{ textAlign: 'right' }}>${parseFloat(item.precio_unitario).toFixed(2)}</td>
-                          <td style={{ textAlign: 'right' }}>
+                        <tr key={i} className="text-slate-300">
+                          <td className="py-2 pr-4">{item.nombre_producto}</td>
+                          <td className="py-2 text-right">{item.cantidad}</td>
+                          <td className="py-2 text-right text-slate-400 hidden sm:table-cell">
+                            ${parseFloat(item.precio_unitario).toFixed(2)}
+                          </td>
+                          <td className="py-2 text-right font-medium">
                             ${(item.cantidad * item.precio_unitario).toFixed(2)}
                           </td>
                         </tr>
@@ -165,10 +163,10 @@ export default function Pedidos() {
                   </table>
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
-      </div>
+      </main>
     </>
   );
 }
