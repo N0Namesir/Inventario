@@ -39,44 +39,48 @@ export default function Login() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center',
-      justifyContent: 'center', background: '#f0f2f5', fontFamily: 'sans-serif'
-    }}>
-      <div style={{
-        background: 'white', padding: '48px', borderRadius: '8px',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.1)', width: '360px'
-      }}>
-        <h1 style={{ margin: '0 0 8px', color: '#1a1a2e' }}>FasTech</h1>
-        <p style={{ margin: '0 0 28px', color: '#666', fontSize: '14px' }}>
-          Sistema de Inventario
-        </p>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            required
-            style={{ padding: '10px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '14px' }}
-          />
-          <input
-            type="password"
-            placeholder="Contraseña"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-            style={{ padding: '10px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '14px' }}
-          />
-          {error && <p style={{ color: 'red', margin: 0, fontSize: '13px' }}>{error}</p>}
+    <div className="min-h-screen bg-navy-950 flex items-center justify-center px-4">
+      <div className="bg-surface-800 border border-surface-700 rounded-xl p-10 w-full max-w-md shadow-modal">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-cyan-400 tracking-tight mb-1">FasTech</h1>
+          <p className="text-slate-400 text-sm">Sistema de Inventario</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">Email</label>
+            <input
+              type="email"
+              placeholder="correo@fastech.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              className="input-dark"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">Contraseña</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              className="input-dark"
+            />
+          </div>
+
+          {error && (
+            <p className="text-danger-400 text-sm bg-danger-500/10 border border-danger-500/30 rounded-lg px-3 py-2">
+              {error}
+            </p>
+          )}
+
           <button
             type="submit"
             disabled={cargando}
-            style={{
-              background: cargando ? '#90caf9' : '#007bff', color: 'white',
-              border: 'none', padding: '12px', cursor: 'pointer',
-              borderRadius: '4px', fontSize: '15px'
-            }}
+            className="btn-primary mt-2"
           >
             {cargando ? 'Entrando...' : 'Iniciar Sesión'}
           </button>

@@ -1,111 +1,79 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+@import "tailwindcss";
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+@theme {
+  /* Fondos */
+  --color-navy-950: #0d0d1a;
+  --color-navy-900: #1a1a2e;
+  --color-navy-800: #16213e;
+  --color-navy-700: #1f2a4a;
+  --color-navy-600: #2d3a5e;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --color-surface-900: #1e1e30;
+  --color-surface-800: #252538;
+  --color-surface-700: #2e2e45;
+  --color-surface-600: #3a3a55;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  /* Acento */
+  --color-cyan-200: #b3e5fc;
+  --color-cyan-300: #81d4fa;
+  --color-cyan-400: #4fc3f7;
+  --color-cyan-500: #29b6f6;
+  --color-cyan-600: #0288d1;
+
+  /* Semánticos */
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-danger-400: #f87171;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+  --color-warning-400: #fbbf24;
+  --color-warning-500: #f59e0b;
+
+  /* Tipografía */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Sombras */
+  --shadow-card: 0 2px 8px rgba(0,0,0,0.35);
+  --shadow-card-hover: 0 8px 24px rgba(0,0,0,0.55);
+  --shadow-modal: 0 20px 60px rgba(0,0,0,0.7);
+  --shadow-nav: 0 2px 12px rgba(0,0,0,0.4);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  background-color: #1a1a2e;
+  color: #e2e8f0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
+  width: 100%;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+@layer components {
+  .input-dark {
+    @apply w-full px-3 py-2.5 bg-surface-700 border border-surface-600 rounded-lg
+           text-sm text-slate-100 placeholder:text-slate-500
+           focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400
+           transition-colors duration-150;
   }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
+
+  .btn-primary {
+    @apply w-full bg-cyan-400 text-navy-950 font-semibold py-2.5 rounded-lg
+           hover:bg-cyan-300 active:bg-cyan-500
+           disabled:opacity-50 disabled:cursor-not-allowed
+           transition-colors duration-150 cursor-pointer;
   }
-}
-p {
-  margin: 0;
-}
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+  .badge-estado {
+    @apply px-3 py-0.5 rounded-full text-xs font-semibold border;
+  }
 }

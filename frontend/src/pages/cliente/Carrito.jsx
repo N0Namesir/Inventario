@@ -12,12 +12,6 @@ const METODOS = [
   { id: 'transferencia', label: 'Transferencia', icon: '🏦' },
 ];
 
-const inputStyle = {
-  width: '100%', padding: '9px 12px', border: '1px solid #ddd',
-  borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box',
-  fontFamily: 'sans-serif',
-};
-
 export default function Carrito() {
   const { carrito, quitarDelCarrito, cambiarCantidad, limpiarCarrito, totalItems, totalCarrito } = useCarrito();
   const [metodoPago, setMetodoPago] = useState('credito');
@@ -26,9 +20,9 @@ export default function Carrito() {
   const [error,      setError]      = useState('');
   const navigate = useNavigate();
 
-  const [card,     setCard]     = useState({ numero: '', nombre: '', expiry: '', cvv: '' });
+  const [card,        setCard]        = useState({ numero: '', nombre: '', expiry: '', cvv: '' });
   const [paypalEmail, setPaypalEmail] = useState('');
-  const [transfer, setTransfer] = useState({ banco: 'BBVA', clabe: '' });
+  const [transfer,    setTransfer]    = useState({ banco: 'BBVA', clabe: '' });
 
   const token   = localStorage.getItem('token');
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -78,10 +72,14 @@ export default function Carrito() {
     return (
       <>
         <Navbar />
-        <div style={{ textAlign: 'center', padding: '80px 20px', fontFamily: 'sans-serif' }}>
-          <div style={{ fontSize: '64px' }}>✅</div>
-          <h2 style={{ color: '#28a745', margin: '16px 0 8px' }}>¡Compra realizada con éxito!</h2>
-          <p style={{ color: '#888' }}>Redirigiendo a Mis Órdenes...</p>
+        <div className="flex-1 flex flex-col items-center justify-center text-center px-4 py-20 bg-navy-800">
+          <div className="bg-success-500/10 border border-success-500/30 rounded-full p-6 mb-6">
+            <svg className="w-16 h-16 text-success-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-semibold text-success-500 mb-2">¡Compra realizada con éxito!</h2>
+          <p className="text-slate-400 text-sm">Redirigiendo a Mis Órdenes...</p>
         </div>
       </>
     );
@@ -90,284 +88,234 @@ export default function Carrito() {
   return (
     <>
       <Navbar />
-      <div style={{ padding: '32px 40px', fontFamily: 'sans-serif', maxWidth: '1100px', margin: 'auto' }}>
+      <main className="flex-1 bg-navy-800 px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-2xl font-semibold text-slate-100 mb-6">
+            Mi Carrito
+            {carrito.length > 0 && (
+              <span className="text-sm font-normal text-slate-500 ml-3">
+                ({totalItems} {totalItems === 1 ? 'artículo' : 'artículos'})
+              </span>
+            )}
+          </h2>
 
-        <h2 style={{ margin: '0 0 24px', fontSize: '22px' }}>
-          Mi Carrito
-          {carrito.length > 0 && (
-            <span style={{ fontSize: '14px', fontWeight: 'normal', color: '#888', marginLeft: '10px' }}>
-              ({totalItems} {totalItems === 1 ? 'artículo' : 'artículos'})
-            </span>
-          )}
-        </h2>
-
-        {carrito.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '80px 20px', color: '#aaa' }}>
-            <div style={{ fontSize: '64px', marginBottom: '16px' }}>🛒</div>
-            <h3 style={{ color: '#666', margin: '0 0 8px' }}>Tu carrito está vacío</h3>
-            <p style={{ margin: '0 0 24px', fontSize: '14px' }}>Agrega productos desde el catálogo</p>
-            <Link to="/cliente/catalogo" style={{
-              background: '#007bff', color: 'white', textDecoration: 'none',
-              padding: '10px 24px', borderRadius: '6px', fontWeight: '500', fontSize: '14px'
-            }}>
-              Ir al Catálogo
-            </Link>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', gap: '28px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-
-            {/* ── Columna izquierda: productos ── */}
-            <div style={{ flex: '1 1 420px', minWidth: 0 }}>
-              <div style={{ border: '1px solid #e0e0e0', borderRadius: '10px', overflow: 'hidden', background: 'white' }}>
-                {carrito.map((item, idx) => (
-                  <div key={item.id} style={{
-                    display: 'flex', alignItems: 'center', gap: '16px', padding: '16px',
-                    borderBottom: idx < carrito.length - 1 ? '1px solid #f0f0f0' : 'none',
-                  }}>
-                    {/* Imagen */}
-                    <div style={{
-                      width: '64px', height: '64px', flexShrink: 0, borderRadius: '8px',
-                      background: '#f8f9fa', overflow: 'hidden',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      {item.imagen_url
-                        ? <img src={`${API}/uploads/${item.imagen_url}`} alt={item.nombre}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        : <span style={{ fontSize: '28px' }}>📦</span>
-                      }
-                    </div>
-
-                    {/* Nombre y precio */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      {item.marca && (
-                        <div style={{ fontSize: '11px', color: '#999', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-                          {item.marca}
-                        </div>
-                      )}
-                      <div style={{ fontWeight: '500', fontSize: '15px' }}>{item.nombre}</div>
-                      <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
-                        ${parseFloat(item.precio).toFixed(2)} c/u · {item.stock} en stock
-                      </div>
-                    </div>
-
-                    {/* Controles de cantidad */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <button
-                        onClick={() => cambiarCantidad(item.id, -1)}
-                        style={{
-                          width: '30px', height: '30px', borderRadius: '50%',
-                          border: '1px solid #ddd', background: 'white',
-                          cursor: 'pointer', fontSize: '18px', lineHeight: 1,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}
-                      >−</button>
-                      <span style={{ minWidth: '26px', textAlign: 'center', fontWeight: '600', fontSize: '15px' }}>
-                        {item.cantidad}
-                      </span>
-                      <button
-                        onClick={() => cambiarCantidad(item.id, +1)}
-                        disabled={item.cantidad >= item.stock}
-                        style={{
-                          width: '30px', height: '30px', borderRadius: '50%',
-                          border: '1px solid #ddd',
-                          background: item.cantidad >= item.stock ? '#f5f5f5' : 'white',
-                          cursor: item.cantidad >= item.stock ? 'default' : 'pointer',
-                          fontSize: '18px', lineHeight: 1,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: item.cantidad >= item.stock ? '#ccc' : '#333',
-                        }}
-                      >+</button>
-                    </div>
-
-                    {/* Subtotal */}
-                    <div style={{ minWidth: '80px', textAlign: 'right', fontWeight: '600', fontSize: '15px' }}>
-                      ${(parseFloat(item.precio) * item.cantidad).toFixed(2)}
-                    </div>
-
-                    {/* Eliminar */}
-                    <button
-                      onClick={() => quitarDelCarrito(item.id)}
-                      title="Eliminar"
-                      style={{
-                        background: 'none', border: 'none', cursor: 'pointer',
-                        color: '#ccc', fontSize: '18px', padding: '4px', lineHeight: 1,
-                      }}
-                    >✕</button>
-                  </div>
-                ))}
+          {carrito.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div className="bg-surface-800 border border-surface-700 rounded-full p-6 mb-6">
+                <svg className="w-12 h-12 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 7h13M10 21a1 1 0 100-2 1 1 0 000 2zm7 0a1 1 0 100-2 1 1 0 000 2z" />
+                </svg>
               </div>
-
-              <button
-                onClick={limpiarCarrito}
-                style={{
-                  marginTop: '12px', background: 'none', border: '1px solid #ddd',
-                  color: '#999', cursor: 'pointer', padding: '7px 16px',
-                  borderRadius: '6px', fontSize: '13px',
-                }}
+              <h3 className="text-slate-300 text-lg font-medium mb-2">Tu carrito está vacío</h3>
+              <p className="text-slate-500 text-sm mb-6">Agrega productos desde el catálogo</p>
+              <Link
+                to="/cliente/catalogo"
+                className="bg-cyan-400 hover:bg-cyan-300 text-navy-950 font-semibold px-6 py-2.5 rounded-lg text-sm transition-colors no-underline"
               >
-                Vaciar carrito
-              </button>
+                Ir al Catálogo
+              </Link>
             </div>
+          ) : (
+            <div className="flex flex-col lg:flex-row gap-6 items-start">
 
-            {/* ── Columna derecha: resumen + pago ── */}
-            <div style={{
-              width: '340px', flexShrink: 0,
-              border: '1px solid #e0e0e0', borderRadius: '10px',
-              overflow: 'hidden', background: 'white',
-            }}>
-              {/* Resumen */}
-              <div style={{ padding: '20px', borderBottom: '1px solid #f0f0f0' }}>
-                <h3 style={{ margin: '0 0 14px', fontSize: '16px' }}>Resumen del pedido</h3>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#666' }}>
-                  <span>Subtotal ({totalItems} {totalItems === 1 ? 'artículo' : 'artículos'})</span>
-                  <span>${totalCarrito.toFixed(2)}</span>
+              {/* Columna productos */}
+              <div className="flex-1 min-w-0">
+                <div className="bg-surface-800 border border-surface-700 rounded-xl overflow-hidden divide-y divide-surface-700">
+                  {carrito.map((item) => {
+                    const maxAlcanzado = item.cantidad >= item.stock;
+                    return (
+                      <div key={item.id} className="flex items-center gap-4 px-5 py-4">
+                        {/* Imagen */}
+                        <div className="w-16 h-16 flex-shrink-0 rounded-lg bg-surface-700 overflow-hidden flex items-center justify-center">
+                          {item.imagen_url
+                            ? <img src={`${API}/uploads/${item.imagen_url}`} alt={item.nombre} className="w-full h-full object-cover" />
+                            : <svg className="w-8 h-8 text-surface-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0v10l-8 4m0-10L4 7m8 4v10" /></svg>
+                          }
+                        </div>
+
+                        {/* Nombre */}
+                        <div className="flex-1 min-w-0">
+                          {item.marca && (
+                            <div className="text-[11px] text-slate-500 uppercase tracking-wide">{item.marca}</div>
+                          )}
+                          <div className="text-sm font-medium text-slate-100 truncate">{item.nombre}</div>
+                          <div className="text-xs text-slate-500 mt-0.5">
+                            ${parseFloat(item.precio).toFixed(2)} c/u
+                          </div>
+                        </div>
+
+                        {/* Cantidad */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => cambiarCantidad(item.id, -1)}
+                            className="w-7 h-7 rounded-full border border-surface-600 bg-surface-700 hover:bg-surface-600 text-slate-200 flex items-center justify-center text-base leading-none transition-colors cursor-pointer"
+                          >−</button>
+                          <span className="w-6 text-center text-sm font-semibold text-slate-100">{item.cantidad}</span>
+                          <button
+                            onClick={() => cambiarCantidad(item.id, +1)}
+                            disabled={maxAlcanzado}
+                            className={`w-7 h-7 rounded-full border border-surface-600 flex items-center justify-center text-base leading-none transition-colors
+                              ${maxAlcanzado ? 'bg-surface-700 text-slate-600 cursor-not-allowed' : 'bg-surface-700 hover:bg-surface-600 text-slate-200 cursor-pointer'}`}
+                          >+</button>
+                        </div>
+
+                        {/* Subtotal */}
+                        <div className="w-20 text-right text-sm font-semibold text-slate-100 hidden sm:block">
+                          ${(parseFloat(item.precio) * item.cantidad).toFixed(2)}
+                        </div>
+
+                        {/* Eliminar */}
+                        <button
+                          onClick={() => quitarDelCarrito(item.id)}
+                          className="text-slate-600 hover:text-danger-400 text-lg leading-none p-1 bg-transparent border-none cursor-pointer transition-colors"
+                          title="Eliminar"
+                        >✕</button>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#28a745' }}>
-                  <span>Envío</span>
-                  <span>Gratis</span>
-                </div>
-                <div style={{
-                  display: 'flex', justifyContent: 'space-between',
-                  paddingTop: '12px', borderTop: '1px solid #f0f0f0',
-                  fontWeight: 'bold', fontSize: '18px',
-                }}>
-                  <span>Total</span>
-                  <span>${totalCarrito.toFixed(2)}</span>
-                </div>
-              </div>
-
-              {/* Método de pago */}
-              <div style={{ padding: '20px' }}>
-                <h3 style={{ margin: '0 0 14px', fontSize: '16px' }}>Método de pago</h3>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '18px' }}>
-                  {METODOS.map(m => (
-                    <button
-                      key={m.id}
-                      onClick={() => { setMetodoPago(m.id); setError(''); }}
-                      style={{
-                        padding: '10px 6px', borderRadius: '8px', cursor: 'pointer',
-                        border: `2px solid ${metodoPago === m.id ? '#007bff' : '#e0e0e0'}`,
-                        background: metodoPago === m.id ? '#e8f4ff' : 'white',
-                        color: metodoPago === m.id ? '#007bff' : '#555',
-                        fontSize: '12px', fontWeight: '500',
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
-                        transition: 'border-color 0.15s',
-                      }}
-                    >
-                      <span style={{ fontSize: '22px' }}>{m.icon}</span>
-                      <span>{m.label}</span>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Formulario según método */}
-                {(metodoPago === 'credito' || metodoPago === 'debito') && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <input
-                      placeholder="Número de tarjeta"
-                      value={card.numero}
-                      onChange={e => setCard({ ...card, numero: fmtCardNum(e.target.value) })}
-                      style={inputStyle}
-                      maxLength="19"
-                    />
-                    <input
-                      placeholder="Nombre del titular"
-                      value={card.nombre}
-                      onChange={e => setCard({ ...card, nombre: e.target.value.toUpperCase() })}
-                      style={inputStyle}
-                    />
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <input
-                        placeholder="MM/AA"
-                        value={card.expiry}
-                        onChange={e => setCard({ ...card, expiry: fmtExpiry(e.target.value) })}
-                        style={{ ...inputStyle, flex: 1 }}
-                        maxLength="5"
-                      />
-                      <input
-                        placeholder="CVV"
-                        value={card.cvv}
-                        onChange={e => setCard({ ...card, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) })}
-                        style={{ ...inputStyle, flex: 1 }}
-                        type="password"
-                        maxLength="4"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {metodoPago === 'paypal' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <p style={{ margin: 0, fontSize: '13px', color: '#666' }}>
-                      Ingresa el email asociado a tu cuenta PayPal
-                    </p>
-                    <input
-                      placeholder="correo@ejemplo.com"
-                      type="email"
-                      value={paypalEmail}
-                      onChange={e => setPaypalEmail(e.target.value)}
-                      style={inputStyle}
-                    />
-                  </div>
-                )}
-
-                {metodoPago === 'transferencia' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <p style={{ margin: 0, fontSize: '13px', color: '#666' }}>
-                      Selecciona tu banco y proporciona tu CLABE
-                    </p>
-                    <select
-                      value={transfer.banco}
-                      onChange={e => setTransfer({ ...transfer, banco: e.target.value })}
-                      style={inputStyle}
-                    >
-                      {['BBVA', 'Santander', 'Banamex', 'HSBC', 'Banorte', 'Inbursa', 'Scotiabank'].map(b => (
-                        <option key={b} value={b}>{b}</option>
-                      ))}
-                    </select>
-                    <input
-                      placeholder="CLABE interbancaria (18 dígitos)"
-                      value={transfer.clabe}
-                      onChange={e => setTransfer({ ...transfer, clabe: e.target.value.replace(/\D/g, '').slice(0, 18) })}
-                      style={inputStyle}
-                    />
-                  </div>
-                )}
-
-                {error && (
-                  <p style={{
-                    margin: '12px 0 0', padding: '10px 12px', borderRadius: '6px',
-                    background: '#f8d7da', color: '#721c24', fontSize: '13px',
-                    border: '1px solid #f5c6cb',
-                  }}>
-                    {error}
-                  </p>
-                )}
 
                 <button
-                  onClick={confirmarCompra}
-                  disabled={comprando}
-                  style={{
-                    marginTop: '16px', width: '100%', padding: '13px',
-                    background: comprando ? '#90caf9' : '#007bff',
-                    color: 'white', border: 'none', borderRadius: '8px',
-                    cursor: comprando ? 'default' : 'pointer',
-                    fontWeight: '600', fontSize: '15px',
-                  }}
+                  onClick={limpiarCarrito}
+                  className="mt-3 text-slate-500 hover:text-danger-400 text-xs border border-surface-600 hover:border-danger-500/50 px-3 py-1.5 rounded-lg transition-colors bg-transparent cursor-pointer"
                 >
-                  {comprando ? 'Procesando...' : `Pagar $${totalCarrito.toFixed(2)}`}
+                  Vaciar carrito
                 </button>
-
-                <p style={{ fontSize: '11px', color: '#bbb', textAlign: 'center', margin: '10px 0 0' }}>
-                  Pago simulado · Solo fines de demostración
-                </p>
               </div>
-            </div>
 
-          </div>
-        )}
-      </div>
+              {/* Columna resumen + pago */}
+              <div className="w-full lg:w-80 lg:sticky lg:top-20 bg-surface-800 border border-surface-700 rounded-xl overflow-hidden">
+                {/* Resumen */}
+                <div className="px-5 py-4 border-b border-surface-700">
+                  <h3 className="text-sm font-semibold text-slate-200 mb-3">Resumen del pedido</h3>
+                  <div className="flex justify-between text-sm text-slate-400 mb-2">
+                    <span>Subtotal ({totalItems} {totalItems === 1 ? 'artículo' : 'artículos'})</span>
+                    <span>${totalCarrito.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-success-500 mb-3">
+                    <span>Envío</span>
+                    <span>Gratis</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-base text-slate-100 border-t border-surface-700 pt-3">
+                    <span>Total</span>
+                    <span className="text-cyan-400">${totalCarrito.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {/* Método de pago */}
+                <div className="px-5 py-4">
+                  <h3 className="text-sm font-semibold text-slate-200 mb-3">Método de pago</h3>
+
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    {METODOS.map(m => (
+                      <button
+                        key={m.id}
+                        onClick={() => { setMetodoPago(m.id); setError(''); }}
+                        className={`flex flex-col items-center gap-1 py-2.5 px-2 rounded-lg text-xs font-medium cursor-pointer border-2 transition-all
+                          ${metodoPago === m.id
+                            ? 'border-cyan-400 bg-cyan-400/10 text-cyan-300'
+                            : 'border-surface-600 bg-surface-700 text-slate-400 hover:border-surface-500'}`}
+                      >
+                        <span className="text-xl">{m.icon}</span>
+                        <span>{m.label}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Formularios */}
+                  {(metodoPago === 'credito' || metodoPago === 'debito') && (
+                    <div className="flex flex-col gap-2.5">
+                      <input
+                        placeholder="Número de tarjeta"
+                        value={card.numero}
+                        onChange={e => setCard({ ...card, numero: fmtCardNum(e.target.value) })}
+                        className="input-dark"
+                        maxLength="19"
+                      />
+                      <input
+                        placeholder="Nombre del titular"
+                        value={card.nombre}
+                        onChange={e => setCard({ ...card, nombre: e.target.value.toUpperCase() })}
+                        className="input-dark"
+                      />
+                      <div className="flex gap-2.5">
+                        <input
+                          placeholder="MM/AA"
+                          value={card.expiry}
+                          onChange={e => setCard({ ...card, expiry: fmtExpiry(e.target.value) })}
+                          className="input-dark flex-1"
+                          maxLength="5"
+                        />
+                        <input
+                          placeholder="CVV"
+                          value={card.cvv}
+                          onChange={e => setCard({ ...card, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                          className="input-dark flex-1"
+                          type="password"
+                          maxLength="4"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {metodoPago === 'paypal' && (
+                    <div className="flex flex-col gap-2.5">
+                      <p className="text-xs text-slate-400 m-0">Email asociado a tu cuenta PayPal</p>
+                      <input
+                        placeholder="correo@ejemplo.com"
+                        type="email"
+                        value={paypalEmail}
+                        onChange={e => setPaypalEmail(e.target.value)}
+                        className="input-dark"
+                      />
+                    </div>
+                  )}
+
+                  {metodoPago === 'transferencia' && (
+                    <div className="flex flex-col gap-2.5">
+                      <p className="text-xs text-slate-400 m-0">Selecciona tu banco y proporciona tu CLABE</p>
+                      <select
+                        value={transfer.banco}
+                        onChange={e => setTransfer({ ...transfer, banco: e.target.value })}
+                        className="input-dark"
+                      >
+                        {['BBVA', 'Santander', 'Banamex', 'HSBC', 'Banorte', 'Inbursa', 'Scotiabank'].map(b => (
+                          <option key={b} value={b}>{b}</option>
+                        ))}
+                      </select>
+                      <input
+                        placeholder="CLABE interbancaria (18 dígitos)"
+                        value={transfer.clabe}
+                        onChange={e => setTransfer({ ...transfer, clabe: e.target.value.replace(/\D/g, '').slice(0, 18) })}
+                        className="input-dark"
+                      />
+                    </div>
+                  )}
+
+                  {error && (
+                    <p className="mt-3 text-xs text-danger-400 bg-danger-500/10 border border-danger-500/30 rounded-lg px-3 py-2 m-0">
+                      {error}
+                    </p>
+                  )}
+
+                  <button
+                    onClick={confirmarCompra}
+                    disabled={comprando}
+                    className="btn-primary mt-4 text-base font-semibold py-3"
+                  >
+                    {comprando ? 'Procesando...' : `Pagar $${totalCarrito.toFixed(2)}`}
+                  </button>
+
+                  <p className="text-[11px] text-slate-600 text-center mt-2.5">
+                    Pago simulado · Solo fines de demostración
+                  </p>
+                </div>
+              </div>
+
+            </div>
+          )}
+        </div>
+      </main>
     </>
   );
 }

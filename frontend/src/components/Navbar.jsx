@@ -2,14 +2,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCarrito } from '../context/CarritoContext';
 
 const linksPorRol = {
-  cliente:    [{ label: 'Catálogo',   to: '/cliente/catalogo' },
+  cliente:    [{ label: 'Catálogo',    to: '/cliente/catalogo' },
                { label: 'Mis Órdenes', to: '/cliente/ordenes'  }],
-  admin:      [{ label: 'Inventario', to: '/admin/inventario' },
-               { label: 'Pedidos',    to: '/admin/pedidos'    }],
-  superadmin: [{ label: 'Usuarios',   to: '/superadmin/usuarios' },
-               { label: 'Reportes',   to: '/superadmin/reportes' },
-               { label: 'Inventario', to: '/admin/inventario'    },
-               { label: 'Pedidos',    to: '/admin/pedidos'       }],
+  admin:      [{ label: 'Inventario',  to: '/admin/inventario' },
+               { label: 'Pedidos',     to: '/admin/pedidos'    }],
+  superadmin: [{ label: 'Usuarios',    to: '/superadmin/usuarios' },
+               { label: 'Reportes',    to: '/superadmin/reportes' },
+               { label: 'Inventario',  to: '/admin/inventario'    },
+               { label: 'Pedidos',     to: '/admin/pedidos'       }],
 };
 
 export default function Navbar() {
@@ -25,44 +25,44 @@ export default function Navbar() {
   };
 
   return (
-    <nav style={{
-      background: '#1a1a2e', color: 'white', padding: '12px 30px',
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-    }}>
-      <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-        <span style={{ fontWeight: 'bold', fontSize: '18px', color: '#4fc3f7' }}>
-          FasTech
-        </span>
-        {links.map(l => (
-          <Link key={l.to} to={l.to} style={{ color: '#ccc', textDecoration: 'none', fontSize: '14px' }}>
-            {l.label}
-          </Link>
-        ))}
+    <nav className="sticky top-0 z-40 bg-navy-900 border-b border-navy-700 px-6 py-3 flex justify-between items-center shadow-nav">
+      {/* Logo + links */}
+      <div className="flex gap-6 items-center">
+        <span className="font-bold text-lg text-cyan-400 tracking-tight">FasTech</span>
+        <div className="hidden sm:flex gap-5 items-center">
+          {links.map(l => (
+            <Link
+              key={l.to}
+              to={l.to}
+              className="text-slate-400 hover:text-cyan-300 text-sm transition-colors no-underline"
+            >
+              {l.label}
+            </Link>
+          ))}
+        </div>
       </div>
-      <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+
+      {/* Derecha: carrito, usuario, salir */}
+      <div className="flex gap-4 items-center">
         {rol === 'cliente' && (
-          <Link to="/cliente/carrito" style={{ textDecoration: 'none', position: 'relative', lineHeight: 1 }}>
-            <span style={{ fontSize: '22px' }}>🛒</span>
+          <Link to="/cliente/carrito" className="relative no-underline leading-none">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-slate-300 hover:text-cyan-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 7h13M7 13L5.4 5M10 21a1 1 0 100-2 1 1 0 000 2zm7 0a1 1 0 100-2 1 1 0 000 2z" />
+            </svg>
             {totalItems > 0 && (
-              <span style={{
-                position: 'absolute', top: '-6px', right: '-8px',
-                background: '#dc3545', color: 'white', borderRadius: '50%',
-                width: '18px', height: '18px', fontSize: '11px', fontWeight: 'bold',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
+              <span className="absolute -top-1.5 -right-2 bg-danger-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
                 {totalItems > 99 ? '99+' : totalItems}
               </span>
             )}
           </Link>
         )}
-        <span style={{ fontSize: '13px', color: '#aaa' }}>
-          {nombre} · <span style={{ color: '#4fc3f7' }}>{rol}</span>
+        <span className="text-xs text-slate-500 hidden md:inline">
+          {nombre} · <span className="text-cyan-400">{rol}</span>
         </span>
-        <button onClick={cerrarSesion} style={{
-          background: '#dc3545', color: 'white', border: 'none',
-          padding: '6px 14px', cursor: 'pointer', borderRadius: '4px'
-        }}>
+        <button
+          onClick={cerrarSesion}
+          className="border border-danger-500 text-danger-400 hover:bg-danger-500 hover:text-white px-3 py-1.5 rounded text-sm transition-colors cursor-pointer bg-transparent"
+        >
           Salir
         </button>
       </div>

@@ -4,5 +4,9 @@
       "Bash(docker exec fastech-db *)",
       "Bash(pnpm build *)"
     ]
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true
   }
 }

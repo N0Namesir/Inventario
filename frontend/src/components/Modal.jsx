@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 
-export default function Modal({ title, onClose, children, width = '520px' }) {
-  // Cerrar con Escape
+export default function Modal({ title, onClose, children }) {
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
@@ -11,24 +10,17 @@ export default function Modal({ title, onClose, children, width = '520px' }) {
   return (
     <div
       onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
-        display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
-      }}
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center px-4"
     >
       <div
         onClick={e => e.stopPropagation()}
-        style={{
-          background: 'white', borderRadius: '10px', padding: '32px',
-          width, maxWidth: '92vw', maxHeight: '90vh', overflowY: 'auto',
-          boxShadow: '0 8px 40px rgba(0,0,0,0.25)'
-        }}
+        className="bg-surface-800 border border-surface-700 rounded-xl p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-modal"
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h2 style={{ margin: 0, fontSize: '20px' }}>{title}</h2>
+        <div className="flex justify-between items-center mb-6">
+          {title && <h2 className="m-0 text-xl font-semibold text-slate-100">{title}</h2>}
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#999', lineHeight: 1 }}
+            className="ml-auto text-slate-500 hover:text-slate-200 text-2xl leading-none bg-transparent border-none cursor-pointer transition-colors"
           >
             ✕
           </button>
