@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
 import Modal from '../../components/Modal';
+import { useCarrito } from '../../context/CarritoContext';
 
 const API = 'http://localhost:5000';
 
 export default function Catalogo() {
-  const [productos,        setProductos]        = useState([]);
-  const [busqueda,         setBusqueda]         = useState('');
-  const [cargando,         setCargando]         = useState(false);
-  const [carrito,          setCarrito]          = useState([]);
-  const [productoDetalle,  setProductoDetalle]  = useState(null);
-  const [mensaje,          setMensaje]          = useState({ texto: '', tipo: '' });
-  const [comprando,        setComprando]        = useState(false);
+  const [productos,       setProductos]       = useState([]);
+  const [busqueda,        setBusqueda]        = useState('');
+  const [cargando,        setCargando]        = useState(false);
+  const [productoDetalle, setProductoDetalle] = useState(null);
+  const [mensaje,         setMensaje]         = useState({ texto: '', tipo: '' });
+
+  const { carrito, agregarAlCarrito } = useCarrito();
 
   const token   = localStorage.getItem('token');
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -28,65 +29,22 @@ export default function Catalogo() {
     setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
   };
 
-  const agregarAlCarrito = (producto) => {
-    const enCarrito = carrito.find(i => i.id === producto.id)?.cantidad || 0;
-    if (enCarrito >= producto.stock) {
-      mostrarMensaje(`No hay más stock de "${producto.nombre}"`, 'error');
-      return;
-    }
-    setCarrito(prev => {
-      const existe = prev.find(i => i.id === producto.id);
-      if (existe) return prev.map(i => i.id === producto.id ? { ...i, cantidad: i.cantidad + 1 } : i);
-      return [...prev, { ...producto, cantidad: 1 }];
-    });
-    mostrarMensaje(`"${producto.nombre}" agregado al carrito`);
+  const handleAgregar = (producto) => {
+    const ok = agregarAlCarrito(producto);
+    if (!ok) mostrarMensaje(`No hay más stock de "${producto.nombre}"`, 'error');
+    else     mostrarMensaje(`"${producto.nombre}" agregado al carrito`);
   };
 
-  const quitarDelCarrito = (id) => setCarrito(prev => prev.filter(i => i.id !== id));
-
-  const confirmarCompra = async () => {
-    setComprando(true);
-    const res = await fetch(`${API}/ordenes`, {
-      method: 'POST', headers,
-      body: JSON.stringify({ items: carrito.map(i => ({ producto_id: i.id, cantidad: i.cantidad })) })
-    });
-    setComprando(false);
-    if (res.ok) {
-      setProductos(prev => prev.map(p => {
-        const item = carrito.find(i => i.id === p.id);
-        return item ? { ...p, stock: p.stock - item.cantidad } : p;
-      }));
-      setCarrito([]);
-      mostrarMensaje('¡Compra realizada con éxito! Revisa "Mis Órdenes".');
-    } else {
-      const err = await res.json();
-      mostrarMensaje(err.error || 'Error al procesar la compra', 'error');
-    }
-  };
-
-  const filtrados     = productos.filter(p =>
+  const filtrados = productos.filter(p =>
     p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
     (p.marca && p.marca.toLowerCase().includes(busqueda.toLowerCase()))
   );
-  const totalCarrito  = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
-  const totalItems    = carrito.reduce((s, i) => s + i.cantidad, 0);
 
   return (
     <>
       <Navbar />
       <div style={{ padding: '40px', fontFamily: 'sans-serif', maxWidth: '1000px', margin: 'auto' }}>
-        {/* Cabecera */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ margin: 0 }}>Catálogo de Productos</h2>
-          {carrito.length > 0 && (
-            <div style={{
-              background: '#e8f5e9', border: '1px solid #4caf50', padding: '10px 20px',
-              borderRadius: '8px', fontSize: '14px', fontWeight: '500'
-            }}>
-              🛒 {totalItems} items · <strong>${totalCarrito.toFixed(2)}</strong>
-            </div>
-          )}
-        </div>
+        <h2 style={{ margin: '0 0 20px' }}>Catálogo de Productos</h2>
 
         {/* Barra de búsqueda */}
         <input
@@ -168,7 +126,7 @@ export default function Catalogo() {
                 {/* Botón */}
                 <div style={{ padding: '0 14px 14px' }}>
                   <button
-                    onClick={e => { e.stopPropagation(); agregarAlCarrito(p); }}
+                    onClick={e => { e.stopPropagation(); handleAgregar(p); }}
                     disabled={disponible === 0}
                     style={{
                       width: '100%', padding: '9px',
@@ -190,49 +148,6 @@ export default function Catalogo() {
           <p style={{ textAlign: 'center', color: '#aaa', padding: '60px 0' }}>
             No se encontraron productos para "{busqueda}".
           </p>
-        )}
-
-        {/* Carrito */}
-        {carrito.length > 0 && (
-          <div style={{ marginTop: '48px', borderTop: '2px solid #eee', paddingTop: '24px' }}>
-            <h3 style={{ marginBottom: '16px' }}>Mi Carrito</h3>
-            <table border="1" cellPadding="10" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-              <thead style={{ background: '#f8f9fa' }}>
-                <tr><th>Producto</th><th>Precio unit.</th><th>Cantidad</th><th>Subtotal</th><th></th></tr>
-              </thead>
-              <tbody>
-                {carrito.map(item => (
-                  <tr key={item.id}>
-                    <td>{item.nombre}</td>
-                    <td>${parseFloat(item.precio).toFixed(2)}</td>
-                    <td style={{ textAlign: 'center' }}>{item.cantidad}</td>
-                    <td><strong>${(item.precio * item.cantidad).toFixed(2)}</strong></td>
-                    <td style={{ textAlign: 'center' }}>
-                      <button onClick={() => quitarDelCarrito(item.id)} style={{
-                        background: 'none', border: 'none', cursor: 'pointer', color: '#dc3545', fontSize: '18px'
-                      }}>✕</button>
-                    </td>
-                  </tr>
-                ))}
-                <tr style={{ background: '#f8f9fa', fontWeight: 'bold' }}>
-                  <td colSpan="3">Total</td>
-                  <td colSpan="2">${totalCarrito.toFixed(2)}</td>
-                </tr>
-              </tbody>
-            </table>
-            <button
-              onClick={confirmarCompra}
-              disabled={comprando}
-              style={{
-                marginTop: '16px', background: comprando ? '#90caf9' : '#007bff',
-                color: 'white', border: 'none', padding: '12px 30px',
-                cursor: comprando ? 'default' : 'pointer', borderRadius: '6px',
-                fontSize: '15px', fontWeight: '600'
-              }}
-            >
-              {comprando ? 'Procesando...' : 'Confirmar compra'}
-            </button>
-          </div>
         )}
       </div>
 
@@ -286,7 +201,7 @@ export default function Catalogo() {
             )}
 
             <button
-              onClick={() => { agregarAlCarrito(p); setProductoDetalle(null); }}
+              onClick={() => { handleAgregar(p); setProductoDetalle(null); }}
               disabled={disp === 0}
               style={{
                 marginTop: '20px', width: '100%', padding: '12px',

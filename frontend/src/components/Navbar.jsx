@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { useCarrito } from '../context/CarritoContext';
 
 const linksPorRol = {
   cliente:    [{ label: 'Catálogo',   to: '/cliente/catalogo' },
@@ -16,6 +17,7 @@ export default function Navbar() {
   const nombre = localStorage.getItem('nombre');
   const rol    = localStorage.getItem('rol');
   const links  = linksPorRol[rol] || [];
+  const { totalItems } = useCarrito();
 
   const cerrarSesion = () => {
     localStorage.clear();
@@ -39,6 +41,21 @@ export default function Navbar() {
         ))}
       </div>
       <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+        {rol === 'cliente' && (
+          <Link to="/cliente/carrito" style={{ textDecoration: 'none', position: 'relative', lineHeight: 1 }}>
+            <span style={{ fontSize: '22px' }}>🛒</span>
+            {totalItems > 0 && (
+              <span style={{
+                position: 'absolute', top: '-6px', right: '-8px',
+                background: '#dc3545', color: 'white', borderRadius: '50%',
+                width: '18px', height: '18px', fontSize: '11px', fontWeight: 'bold',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {totalItems > 99 ? '99+' : totalItems}
+              </span>
+            )}
+          </Link>
+        )}
         <span style={{ fontSize: '13px', color: '#aaa' }}>
           {nombre} · <span style={{ color: '#4fc3f7' }}>{rol}</span>
         </span>

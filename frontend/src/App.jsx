@@ -3,10 +3,12 @@ import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import Catalogo from './pages/cliente/Catalogo';
 import MisOrdenes from './pages/cliente/MisOrdenes';
+import Carrito from './pages/cliente/Carrito';
 import Inventario from './pages/admin/Inventario';
 import Pedidos from './pages/admin/Pedidos';
 import Usuarios from './pages/superadmin/Usuarios';
 import Reportes from './pages/superadmin/Reportes';
+import { CarritoProvider } from './context/CarritoContext';
 
 function RootRedirect() {
   const rol = localStorage.getItem('rol');
@@ -19,6 +21,7 @@ function RootRedirect() {
 export default function App() {
   return (
     <BrowserRouter>
+      <CarritoProvider>
       <Routes>
         <Route path="/"        element={<RootRedirect />} />
         <Route path="/login"   element={<Login />} />
@@ -31,6 +34,11 @@ export default function App() {
         <Route path="/cliente/ordenes" element={
           <ProtectedRoute roles={['cliente']}>
             <MisOrdenes />
+          </ProtectedRoute>
+        } />
+        <Route path="/cliente/carrito" element={
+          <ProtectedRoute roles={['cliente']}>
+            <Carrito />
           </ProtectedRoute>
         } />
 
@@ -58,6 +66,7 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+      </CarritoProvider>
     </BrowserRouter>
   );
 }

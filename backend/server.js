@@ -21,6 +21,14 @@ const db = mysql.createConnection({
     database: process.env.DB_NAME
 });
 
+db.connect(err => {
+    if (err) {
+        console.error('Error al conectar con MySQL:', err.message);
+        process.exit(1);
+    }
+    console.log('Conectado a MySQL');
+});
+
 // ─── MULTER (subida de imágenes) ─────────────────────────────────────────────
 
 const storage = multer.diskStorage({
