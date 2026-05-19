@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
 import { API } from '../../config';
+import { FILTROS_VACIOS, filtrarProductos } from '../../utils/filtrarProductos';
 
 function StatCard({ titulo, valor, colorNum, colorBorder, icon }) {
   return (
@@ -17,20 +18,32 @@ function StatCard({ titulo, valor, colorNum, colorBorder, icon }) {
 export default function Reportes() {
   const [productos, setProductos] = useState([]);
   const [cargando,  setCargando]  = useState(false);
+  const [tags,    setTags]    = useState([]);
+  const [filtros, setFiltros] = useState(FILTROS_VACIOS);
 
   const token = localStorage.getItem('token');
 
   useEffect(() => {
     setCargando(true);
-    fetch(`${API}/productos`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(data => { setProductos(data); setCargando(false); });
+    Promise.all([
+      fetch(`${API}/productos`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+      fetch(`${API}/tags`,      { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+    ]).then(([prods, tgs]) => {
+      setProductos(prods);
+      setTags(tgs);
+      setCargando(false);
+    });
   }, []);
 
-  const totalProductos  = productos.length;
-  const valorInventario = productos.reduce((s, p) => s + p.precio * p.stock, 0);
-  const sinStock        = productos.filter(p => p.stock === 0).length;
-  const masStock        = productos.reduce((max, p) => p.stock > (max?.stock ?? -1) ? p : max, null);
+  const marcasDisponibles = [...new Set(productos.map(p => p.marca).filter(Boolean))].sort();
+  const filtrados         = filtrarProductos(productos, filtros);
+  const hayFiltros        = filtros.tagIds.length > 0 || filtros.marcas.length > 0 ||
+                            filtros.precioMin !== '' || filtros.precioMax !== '';
+
+  const totalProductos  = filtrados.length;
+  const valorInventario = filtrados.reduce((s, p) => s + p.precio * p.stock, 0);
+  const sinStock        = filtrados.filter(p => p.stock === 0).length;
+  const masStock        = filtrados.reduce((max, p) => p.stock > (max?.stock ?? -1) ? p : max, null);
 
   return (
     <>
@@ -38,6 +51,62 @@ export default function Reportes() {
       <main className="flex-1 bg-navy-800 px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl font-semibold text-slate-100 mb-6">Reportes del Sistema</h2>
+
+          {/* Barra de filtros horizontal */}
+          <div className="bg-surface-800 border border-surface-700 rounded-xl px-4 py-3 mb-6 flex flex-wrap gap-3 items-end">
+            <div>
+              <p className="text-[11px] text-slate-500 uppercase tracking-wide mb-1.5">Tag</p>
+              <select
+                value={filtros.tagIds[0] || ''}
+                onChange={e => setFiltros(f => ({ ...f, tagIds: e.target.value ? [parseInt(e.target.value)] : [] }))}
+                className="input-dark text-sm py-1.5 w-40"
+              >
+                <option value="">Todos</option>
+                {tags.map(t => (
+                  <option key={t.id} value={t.id}>{t.nombre}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <p className="text-[11px] text-slate-500 uppercase tracking-wide mb-1.5">Marca</p>
+              <select
+                value={filtros.marcas[0] || ''}
+                onChange={e => setFiltros(f => ({ ...f, marcas: e.target.value ? [e.target.value] : [] }))}
+                className="input-dark text-sm py-1.5 w-40"
+              >
+                <option value="">Todas</option>
+                {marcasDisponibles.map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <p className="text-[11px] text-slate-500 uppercase tracking-wide mb-1.5">Precio</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number" min="0" placeholder="Mín"
+                  value={filtros.precioMin}
+                  onChange={e => setFiltros(f => ({ ...f, precioMin: e.target.value }))}
+                  className="input-dark text-sm py-1.5 w-24"
+                />
+                <span className="text-slate-600 text-xs">—</span>
+                <input
+                  type="number" min="0" placeholder="Máx"
+                  value={filtros.precioMax}
+                  onChange={e => setFiltros(f => ({ ...f, precioMax: e.target.value }))}
+                  className="input-dark text-sm py-1.5 w-24"
+                />
+              </div>
+            </div>
+            {hayFiltros && (
+              <button
+                onClick={() => setFiltros(FILTROS_VACIOS)}
+                className="text-xs text-cyan-400 hover:text-cyan-300 bg-transparent border-none cursor-pointer self-end pb-1.5"
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
 
           {cargando && (
             <div className="flex items-center gap-2 text-slate-400 py-8">
@@ -95,7 +164,7 @@ export default function Reportes() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-700">
-                  {productos.map(p => (
+                  {filtrados.map(p => (
                     <tr
                       key={p.id}
                       className={`transition-colors ${p.stock === 0 ? 'bg-danger-500/5' : 'hover:bg-surface-700/50'}`}
@@ -112,7 +181,7 @@ export default function Reportes() {
                       </td>
                     </tr>
                   ))}
-                  {productos.length === 0 && !cargando && (
+                  {filtrados.length === 0 && !cargando && (
                     <tr>
                       <td colSpan="4" className="text-center py-12 text-slate-500">Sin productos registrados.</td>
                     </tr>
@@ -123,7 +192,8 @@ export default function Reportes() {
           </div>
 
           <p className="text-slate-600 text-xs mt-3">
-            {totalProductos} producto{totalProductos !== 1 ? 's' : ''} · {sinStock} sin stock
+            {totalProductos} producto{totalProductos !== 1 ? 's' : ''}
+            {hayFiltros ? ' (filtrados)' : ''} · {sinStock} sin stock
           </p>
         </div>
       </main>

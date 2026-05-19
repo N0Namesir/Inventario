@@ -2,8 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import Navbar from '../../components/Navbar';
 import Modal from '../../components/Modal';
 import { API } from '../../config';
+import FilterSidebar from '../../components/FilterSidebar';
+import TagSelector from '../../components/TagSelector';
+import { FILTROS_VACIOS, filtrarProductos } from '../../utils/filtrarProductos';
 
-const FORM_VACIO = { nombre: '', marca: '', precio: '', stock: '', descripcion: '', imagenFile: null, previewUrl: '', imagen_url_existente: '' };
+const FORM_VACIO = { nombre: '', marca: '', precio: '', stock: '', descripcion: '', imagenFile: null, previewUrl: '', imagen_url_existente: '', tag_ids: [] };
 
 export default function Inventario() {
   const [productos,  setProductos]  = useState([]);
@@ -14,15 +17,23 @@ export default function Inventario() {
   const [guardando,  setGuardando]  = useState(false);
   const [error,      setError]      = useState('');
   const fileRef = useRef();
+  const [tags,    setTags]    = useState([]);
+  const [filtros, setFiltros] = useState(FILTROS_VACIOS);
+  const [sidebarAbierto, setSidebarAbierto] = useState(false);
 
   const token      = localStorage.getItem('token');
   const authHeader = { Authorization: `Bearer ${token}` };
 
   useEffect(() => {
     setCargando(true);
-    fetch(`${API}/productos`, { headers: authHeader })
-      .then(r => r.json())
-      .then(data => { setProductos(data); setCargando(false); });
+    Promise.all([
+      fetch(`${API}/productos`, { headers: authHeader }).then(r => r.json()),
+      fetch(`${API}/tags`,      { headers: authHeader }).then(r => r.json()),
+    ]).then(([prods, tgs]) => {
+      setProductos(prods);
+      setTags(tgs);
+      setCargando(false);
+    });
   }, []);
 
   const abrirAgregar = () => { setForm(FORM_VACIO); setError(''); setModal('add'); };
@@ -32,7 +43,8 @@ export default function Inventario() {
       nombre: p.nombre, marca: p.marca || '', precio: p.precio, stock: p.stock,
       descripcion: p.descripcion || '', imagenFile: null,
       previewUrl: p.imagen_url ? `${API}/uploads/${p.imagen_url}` : '',
-      imagen_url_existente: p.imagen_url || ''
+      imagen_url_existente: p.imagen_url || '',
+      tag_ids: (p.tags || []).map(t => t.id)
     });
     setError('');
     setModal(p);
@@ -53,6 +65,7 @@ export default function Inventario() {
     fd.append('precio',      form.precio);
     fd.append('stock',       form.stock);
     fd.append('descripcion', form.descripcion.trim());
+    fd.append('tag_ids',     JSON.stringify(form.tag_ids));
     if (form.imagenFile) fd.append('imagen', form.imagenFile);
     else if (form.imagen_url_existente) fd.append('imagen_url_existente', form.imagen_url_existente);
     return fd;
@@ -85,10 +98,9 @@ export default function Inventario() {
     setProductos(prev => prev.filter(p => p.id !== id));
   };
 
-  const filtrados = productos.filter(p =>
-    p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-    (p.marca && p.marca.toLowerCase().includes(busqueda.toLowerCase()))
-  );
+  const marcasDisponibles = [...new Set(productos.map(p => p.marca).filter(Boolean))].sort();
+  const filtrados = filtrarProductos(productos, filtros, busqueda);
+  const limpiarFiltros = () => setFiltros(FILTROS_VACIOS);
 
   return (
     <>
@@ -107,99 +119,127 @@ export default function Inventario() {
             </button>
           </div>
 
-          {/* Barra búsqueda */}
-          <div className="relative mb-6 max-w-md">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-            </svg>
-            <input
-              placeholder="Buscar por nombre o marca..."
-              value={busqueda}
-              onChange={e => setBusqueda(e.target.value)}
-              className="input-dark pl-10"
-            />
-          </div>
-
-          {cargando && (
-            <div className="flex items-center gap-2 text-slate-400 py-8">
-              <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+          {/* Barra búsqueda + filtros mobile */}
+          <div className="flex gap-3 mb-6">
+            <div className="relative max-w-md flex-1">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
               </svg>
-              Cargando productos...
+              <input
+                placeholder="Buscar por nombre o marca..."
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                className="input-dark pl-10"
+              />
             </div>
-          )}
-
-          {/* Tabla */}
-          <div className="bg-surface-800 border border-surface-700 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-surface-700 text-slate-500 text-xs uppercase tracking-wide">
-                    <th className="px-4 py-3 text-left w-16">Imagen</th>
-                    <th className="px-4 py-3 text-left">Nombre</th>
-                    <th className="px-4 py-3 text-left hidden md:table-cell">Marca</th>
-                    <th className="px-4 py-3 text-right">Precio</th>
-                    <th className="px-4 py-3 text-right">Stock</th>
-                    <th className="px-4 py-3 text-left hidden lg:table-cell">Descripción</th>
-                    <th className="px-4 py-3 text-center">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-surface-700">
-                  {filtrados.length === 0 && !cargando ? (
-                    <tr>
-                      <td colSpan="7" className="text-center py-16 text-slate-500">
-                        No se encontraron productos.
-                      </td>
-                    </tr>
-                  ) : filtrados.map(p => (
-                    <tr key={p.id} className="hover:bg-surface-700/50 transition-colors">
-                      <td className="px-4 py-3">
-                        {p.imagen_url
-                          ? <img src={`${API}/uploads/${p.imagen_url}`} alt={p.nombre} className="w-12 h-12 object-cover rounded-lg" />
-                          : <div className="w-12 h-12 bg-surface-700 rounded-lg flex items-center justify-center">
-                              <svg className="w-6 h-6 text-surface-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0v10l-8 4m0-10L4 7m8 4v10"/></svg>
-                            </div>
-                        }
-                      </td>
-                      <td className="px-4 py-3 font-medium text-slate-100">{p.nombre}</td>
-                      <td className="px-4 py-3 text-slate-400 hidden md:table-cell">{p.marca || <span className="text-slate-600">—</span>}</td>
-                      <td className="px-4 py-3 text-right text-cyan-400 font-semibold">${parseFloat(p.precio).toFixed(2)}</td>
-                      <td className={`px-4 py-3 text-right font-semibold ${p.stock === 0 ? 'text-danger-400' : p.stock <= 3 ? 'text-warning-400' : 'text-slate-300'}`}>
-                        {p.stock}
-                      </td>
-                      <td className="px-4 py-3 text-slate-400 text-xs max-w-xs hidden lg:table-cell">
-                        {p.descripcion
-                          ? <span title={p.descripcion}>{p.descripcion.slice(0, 60)}{p.descripcion.length > 60 ? '…' : ''}</span>
-                          : <span className="text-slate-600">—</span>
-                        }
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2 justify-center">
-                          <button
-                            onClick={() => abrirEditar(p)}
-                            className="bg-warning-500/10 hover:bg-warning-500/20 text-warning-400 border border-warning-500/30 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer"
-                          >
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => eliminar(p.id, p.nombre)}
-                            className="bg-danger-500/10 hover:bg-danger-500/20 text-danger-400 border border-danger-500/30 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer"
-                          >
-                            Borrar
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <button
+              onClick={() => setSidebarAbierto(v => !v)}
+              className={`lg:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm transition-colors cursor-pointer
+                ${sidebarAbierto
+                  ? 'bg-cyan-400/10 border-cyan-400/40 text-cyan-300'
+                  : 'bg-surface-800 border-surface-700 text-slate-400 hover:text-slate-200'}`}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M7 12h10M11 20h2" />
+              </svg>
+              Filtros
+            </button>
           </div>
 
-          <p className="text-slate-600 text-xs mt-3">
-            {filtrados.length} producto{filtrados.length !== 1 ? 's' : ''}{busqueda ? ` para "${busqueda}"` : ''}
-          </p>
+          {/* Layout: sidebar + tabla */}
+          <div className="flex gap-6 items-start">
+            <div className={`${sidebarAbierto ? 'block' : 'hidden'} lg:block`}>
+              <FilterSidebar
+                tags={tags}
+                marcas={marcasDisponibles}
+                filtros={filtros}
+                onChange={setFiltros}
+                onLimpiar={limpiarFiltros}
+              />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              {cargando && (
+                <div className="flex items-center gap-2 text-slate-400 py-8">
+                  <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                  </svg>
+                  Cargando productos...
+                </div>
+              )}
+
+              {/* Tabla */}
+              <div className="bg-surface-800 border border-surface-700 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-surface-700 text-slate-500 text-xs uppercase tracking-wide">
+                        <th className="px-4 py-3 text-left w-16">Imagen</th>
+                        <th className="px-4 py-3 text-left">Nombre</th>
+                        <th className="px-4 py-3 text-left hidden md:table-cell">Marca</th>
+                        <th className="px-4 py-3 text-right">Precio</th>
+                        <th className="px-4 py-3 text-right">Stock</th>
+                        <th className="px-4 py-3 text-left hidden lg:table-cell">Descripción</th>
+                        <th className="px-4 py-3 text-center">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-surface-700">
+                      {filtrados.length === 0 && !cargando ? (
+                        <tr>
+                          <td colSpan="7" className="text-center py-16 text-slate-500">
+                            No se encontraron productos.
+                          </td>
+                        </tr>
+                      ) : filtrados.map(p => (
+                        <tr key={p.id} className="hover:bg-surface-700/50 transition-colors">
+                          <td className="px-4 py-3">
+                            {p.imagen_url
+                              ? <img src={`${API}/uploads/${p.imagen_url}`} alt={p.nombre} className="w-12 h-12 object-cover rounded-lg" />
+                              : <div className="w-12 h-12 bg-surface-700 rounded-lg flex items-center justify-center">
+                                  <svg className="w-6 h-6 text-surface-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0v10l-8 4m0-10L4 7m8 4v10"/></svg>
+                                </div>
+                            }
+                          </td>
+                          <td className="px-4 py-3 font-medium text-slate-100">{p.nombre}</td>
+                          <td className="px-4 py-3 text-slate-400 hidden md:table-cell">{p.marca || <span className="text-slate-600">—</span>}</td>
+                          <td className="px-4 py-3 text-right text-cyan-400 font-semibold">${parseFloat(p.precio).toFixed(2)}</td>
+                          <td className={`px-4 py-3 text-right font-semibold ${p.stock === 0 ? 'text-danger-400' : p.stock <= 3 ? 'text-warning-400' : 'text-slate-300'}`}>
+                            {p.stock}
+                          </td>
+                          <td className="px-4 py-3 text-slate-400 text-xs max-w-xs hidden lg:table-cell">
+                            {p.descripcion
+                              ? <span title={p.descripcion}>{p.descripcion.slice(0, 60)}{p.descripcion.length > 60 ? '…' : ''}</span>
+                              : <span className="text-slate-600">—</span>
+                            }
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-2 justify-center">
+                              <button
+                                onClick={() => abrirEditar(p)}
+                                className="bg-warning-500/10 hover:bg-warning-500/20 text-warning-400 border border-warning-500/30 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => eliminar(p.id, p.nombre)}
+                                className="bg-danger-500/10 hover:bg-danger-500/20 text-danger-400 border border-danger-500/30 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                              >
+                                Borrar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <p className="text-slate-600 text-xs mt-3">
+                {filtrados.length} producto{filtrados.length !== 1 ? 's' : ''}{busqueda ? ` para "${busqueda}"` : ''}
+              </p>
+            </div>
+          </div>
         </div>
       </main>
 
@@ -241,6 +281,17 @@ export default function Inventario() {
                 rows="3"
                 placeholder="Características, beneficios, por qué comprarlo..."
                 className="input-dark resize-none"
+              />
+            </div>
+
+            {/* Tags */}
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-2">Tags</label>
+              <TagSelector
+                tags={tags}
+                selectedIds={form.tag_ids}
+                onChange={ids => setForm(prev => ({ ...prev, tag_ids: ids }))}
+                token={token}
               />
             </div>
 

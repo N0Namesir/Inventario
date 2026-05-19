@@ -104,11 +104,36 @@ function validarProducto(req, res) {
     return null;
 }
 
+function asignarTags(productoId, tagIds, callback) {
+    db.query('DELETE FROM producto_tags WHERE producto_id = ?', [productoId], (err) => {
+        if (err) return callback(err);
+        if (!tagIds || tagIds.length === 0) return callback(null);
+        const values = tagIds.map(tid => [productoId, parseInt(tid)]);
+        db.query('INSERT INTO producto_tags (producto_id, tag_id) VALUES ?', [values], callback);
+    });
+}
+
 // GET — todos los usuarios autenticados
 app.get('/productos', verificarToken, (req, res) => {
-    db.query('SELECT * FROM productos', (err, results) => {
+    const sql = `
+        SELECT p.*,
+               COALESCE(
+                 JSON_ARRAYAGG(
+                   IF(t.id IS NOT NULL, JSON_OBJECT('id', t.id, 'nombre', t.nombre, 'tipo', t.tipo), NULL)
+                 ), JSON_ARRAY()
+               ) AS tags
+        FROM productos p
+        LEFT JOIN producto_tags pt ON pt.producto_id = p.id
+        LEFT JOIN tags t ON t.id = pt.tag_id
+        GROUP BY p.id
+        ORDER BY p.id`;
+    db.query(sql, (err, results) => {
         if (err) return res.status(500).json({ error: 'Error del servidor' });
-        res.json(results);
+        const productos = results.map(p => ({
+            ...p,
+            tags: (JSON.parse(p.tags) || []).filter(Boolean)
+        }));
+        res.json(productos);
     });
 });
 
@@ -118,6 +143,7 @@ app.post('/productos', verificarToken, verificarRol('admin', 'superadmin'), uplo
     if (error) return;
 
     const { nombre, marca, precio, stock, descripcion } = req.body;
+    const tagIds    = req.body.tag_ids ? JSON.parse(req.body.tag_ids) : [];
     const imagen_url = req.file ? req.file.filename : null;
 
     db.query(
@@ -125,14 +151,19 @@ app.post('/productos', verificarToken, verificarRol('admin', 'superadmin'), uplo
         [nombre.trim(), marca?.trim() || null, parseFloat(precio), parseInt(stock) || 0, descripcion?.trim() || null, imagen_url],
         (err, result) => {
             if (err) return res.status(500).json({ error: 'Error del servidor' });
-            res.status(201).json({
-                id: result.insertId,
-                nombre: nombre.trim(),
-                marca: marca?.trim() || null,
-                precio: parseFloat(precio),
-                stock: parseInt(stock) || 0,
-                descripcion: descripcion?.trim() || null,
-                imagen_url
+            const productoId = result.insertId;
+            asignarTags(productoId, tagIds, (err) => {
+                if (err) return res.status(500).json({ error: 'Error asignando tags' });
+                res.status(201).json({
+                    id: productoId,
+                    nombre: nombre.trim(),
+                    marca: marca?.trim() || null,
+                    precio: parseFloat(precio),
+                    stock: parseInt(stock) || 0,
+                    descripcion: descripcion?.trim() || null,
+                    imagen_url,
+                    tags: []
+                });
             });
         }
     );
@@ -144,6 +175,7 @@ app.put('/productos/:id', verificarToken, verificarRol('admin', 'superadmin'), u
     if (error) return;
 
     const { nombre, marca, precio, stock, descripcion, imagen_url_existente } = req.body;
+    const tagIds    = req.body.tag_ids ? JSON.parse(req.body.tag_ids) : [];
     const imagen_url = req.file ? req.file.filename : (imagen_url_existente || null);
     const id = parseInt(req.params.id);
 
@@ -153,14 +185,18 @@ app.put('/productos/:id', verificarToken, verificarRol('admin', 'superadmin'), u
         (err, result) => {
             if (err) return res.status(500).json({ error: 'Error del servidor' });
             if (result.affectedRows === 0) return res.status(404).json({ error: 'Producto no encontrado' });
-            res.json({
-                id,
-                nombre: nombre.trim(),
-                marca: marca?.trim() || null,
-                precio: parseFloat(precio),
-                stock: parseInt(stock) || 0,
-                descripcion: descripcion?.trim() || null,
-                imagen_url
+            asignarTags(id, tagIds, (err) => {
+                if (err) return res.status(500).json({ error: 'Error asignando tags' });
+                res.json({
+                    id,
+                    nombre: nombre.trim(),
+                    marca: marca?.trim() || null,
+                    precio: parseFloat(precio),
+                    stock: parseInt(stock) || 0,
+                    descripcion: descripcion?.trim() || null,
+                    imagen_url,
+                    tags: []
+                });
             });
         }
     );
@@ -171,6 +207,45 @@ app.delete('/productos/:id', verificarToken, verificarRol('admin', 'superadmin')
     db.query('DELETE FROM productos WHERE id = ?', [req.params.id], (err) => {
         if (err) return res.status(500).json({ error: 'Error del servidor' });
         res.json({ mensaje: 'Producto eliminado' });
+    });
+});
+
+// ─── TAGS ────────────────────────────────────────────────────────────────────
+
+app.get('/tags', verificarToken, (req, res) => {
+    db.query('SELECT * FROM tags ORDER BY tipo, nombre', (err, results) => {
+        if (err) return res.status(500).json({ error: 'Error del servidor' });
+        res.json(results);
+    });
+});
+
+app.post('/tags', verificarToken, verificarRol('admin', 'superadmin'), (req, res) => {
+    const { nombre, tipo } = req.body;
+    if (!nombre || !nombre.trim())
+        return res.status(400).json({ error: 'El nombre es requerido' });
+    if (!['categoria', 'temporal'].includes(tipo))
+        return res.status(400).json({ error: 'Tipo inválido (categoria o temporal)' });
+
+    db.query(
+        'INSERT INTO tags (nombre, tipo) VALUES (?, ?)',
+        [nombre.trim(), tipo],
+        (err, result) => {
+            if (err) {
+                if (err.code === 'ER_DUP_ENTRY')
+                    return res.status(409).json({ error: 'Ya existe un tag con ese nombre' });
+                return res.status(500).json({ error: 'Error del servidor' });
+            }
+            res.status(201).json({ id: result.insertId, nombre: nombre.trim(), tipo });
+        }
+    );
+});
+
+app.delete('/tags/:id', verificarToken, verificarRol('admin', 'superadmin'), (req, res) => {
+    db.query('DELETE FROM tags WHERE id = ?', [req.params.id], (err, result) => {
+        if (err) return res.status(500).json({ error: 'Error del servidor' });
+        if (result.affectedRows === 0)
+            return res.status(404).json({ error: 'Tag no encontrado' });
+        res.json({ mensaje: 'Tag eliminado' });
     });
 });
 

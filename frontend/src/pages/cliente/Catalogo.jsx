@@ -3,6 +3,8 @@ import Navbar from '../../components/Navbar';
 import Modal from '../../components/Modal';
 import { useCarrito } from '../../context/CarritoContext';
 import { API } from '../../config';
+import FilterSidebar from '../../components/FilterSidebar';
+import { FILTROS_VACIOS, filtrarProductos } from '../../utils/filtrarProductos';
 
 function StockBadge({ disponible, enCarrito }) {
   if (disponible === 0)
@@ -43,6 +45,9 @@ export default function Catalogo() {
   const [cargando,        setCargando]        = useState(false);
   const [productoDetalle, setProductoDetalle] = useState(null);
   const [toast,           setToast]           = useState({ texto: '', tipo: '' });
+  const [tags,    setTags]    = useState([]);
+  const [filtros, setFiltros] = useState(FILTROS_VACIOS);
+  const [sidebarAbierto, setSidebarAbierto] = useState(false);
 
   const { carrito, agregarAlCarrito } = useCarrito();
   const token   = localStorage.getItem('token');
@@ -50,9 +55,15 @@ export default function Catalogo() {
 
   useEffect(() => {
     setCargando(true);
-    fetch(`${API}/productos`, { headers })
-      .then(r => r.json())
-      .then(data => { setProductos(data); setCargando(false); });
+    const h = { headers };
+    Promise.all([
+      fetch(`${API}/productos`, h).then(r => r.json()),
+      fetch(`${API}/tags`,      h).then(r => r.json()),
+    ]).then(([prods, tgs]) => {
+      setProductos(prods);
+      setTags(tgs);
+      setCargando(false);
+    });
   }, []);
 
   const mostrarToast = (texto, tipo = 'success') => {
@@ -67,10 +78,9 @@ export default function Catalogo() {
     if (cerrarModal) setProductoDetalle(null);
   };
 
-  const filtrados = productos.filter(p =>
-    p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-    (p.marca && p.marca.toLowerCase().includes(busqueda.toLowerCase()))
-  );
+  const marcasDisponibles = [...new Set(productos.map(p => p.marca).filter(Boolean))].sort();
+  const filtrados = filtrarProductos(productos, filtros, busqueda);
+  const limpiarFiltros = () => setFiltros(FILTROS_VACIOS);
 
   return (
     <>
@@ -79,91 +89,120 @@ export default function Catalogo() {
         <div className="max-w-7xl mx-auto">
           <h2 className="text-2xl font-semibold text-slate-100 mb-6">Catálogo de Productos</h2>
 
-          {/* Barra de búsqueda */}
-          <div className="relative mb-8 max-w-md">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-            </svg>
-            <input
-              placeholder="Buscar por nombre o marca..."
-              value={busqueda}
-              onChange={e => setBusqueda(e.target.value)}
-              className="input-dark pl-10"
-            />
+          {/* Barra de búsqueda + botón filtros mobile */}
+          <div className="flex gap-3 mb-6">
+            <div className="relative flex-1 max-w-md">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+              </svg>
+              <input
+                placeholder="Buscar por nombre o marca..."
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                className="input-dark pl-10"
+              />
+            </div>
+            <button
+              onClick={() => setSidebarAbierto(v => !v)}
+              className={`lg:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm transition-colors cursor-pointer
+                ${sidebarAbierto
+                  ? 'bg-cyan-400/10 border-cyan-400/40 text-cyan-300'
+                  : 'bg-surface-800 border-surface-700 text-slate-400 hover:text-slate-200'}`}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M7 12h10M11 20h2" />
+              </svg>
+              Filtros
+            </button>
           </div>
 
-          {cargando && (
-            <div className="flex items-center gap-2 text-slate-400 py-12">
-              <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-              </svg>
-              Cargando productos...
+          <div className="flex gap-6 items-start">
+            {/* Sidebar */}
+            <div className={`${sidebarAbierto ? 'block' : 'hidden'} lg:block`}>
+              <FilterSidebar
+                tags={tags}
+                marcas={marcasDisponibles}
+                filtros={filtros}
+                onChange={setFiltros}
+                onLimpiar={limpiarFiltros}
+              />
             </div>
-          )}
 
-          {/* Grid de productos */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {filtrados.map(p => {
-              const enCarrito  = carrito.find(i => i.id === p.id)?.cantidad || 0;
-              const disponible = p.stock - enCarrito;
-              return (
-                <div
-                  key={p.id}
-                  onClick={() => setProductoDetalle(p)}
-                  className={`bg-surface-800 border border-surface-700 rounded-xl overflow-hidden cursor-pointer
-                    hover:border-surface-600 hover:-translate-y-0.5 hover:shadow-card-hover
-                    transition-all duration-200 flex flex-col
-                    ${disponible === 0 ? 'opacity-60' : ''}`}
-                >
-                  {/* Imagen */}
-                  <div className="h-44 bg-surface-700 overflow-hidden flex items-center justify-center">
-                    <ProductImage url={p.imagen_url} nombre={p.nombre} size="card" />
-                  </div>
-
-                  {/* Info */}
-                  <div className="p-4 flex flex-col gap-1.5 flex-1">
-                    {p.marca && (
-                      <span className="text-[11px] text-slate-500 uppercase tracking-wide">{p.marca}</span>
-                    )}
-                    <h3 className="text-sm font-semibold text-slate-100 leading-snug m-0">{p.nombre}</h3>
-                    {p.descripcion && (
-                      <p className="text-xs text-slate-400 leading-relaxed m-0 line-clamp-2">
-                        {p.descripcion}
-                      </p>
-                    )}
-                    <p className="text-xl font-bold text-cyan-400 mt-1 mb-0">
-                      ${parseFloat(p.precio).toFixed(2)}
-                    </p>
-                    <StockBadge disponible={disponible} enCarrito={enCarrito} />
-                  </div>
-
-                  {/* Botón */}
-                  <div className="px-4 pb-4">
-                    <button
-                      onClick={e => { e.stopPropagation(); handleAgregar(p); }}
-                      disabled={disponible === 0}
-                      className={`w-full py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer border-none
-                        ${disponible === 0
-                          ? 'bg-surface-700 text-slate-500 cursor-not-allowed'
-                          : 'bg-success-500 hover:bg-success-600 text-white'}`}
-                    >
-                      {disponible === 0 ? 'Sin stock' : '+ Agregar al carrito'}
-                    </button>
-                  </div>
+            {/* Contenido principal */}
+            <div className="flex-1 min-w-0">
+              {cargando && (
+                <div className="flex items-center gap-2 text-slate-400 py-12">
+                  <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                  </svg>
+                  Cargando productos...
                 </div>
-              );
-            })}
-          </div>
+              )}
 
-          {filtrados.length === 0 && !cargando && (
-            <div className="text-center py-20 text-slate-500">
-              <svg className="w-12 h-12 mx-auto mb-4 text-surface-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-sm">No se encontraron productos para "<span className="text-slate-300">{busqueda}</span>"</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                {filtrados.map(p => {
+                  const enCarrito  = carrito.find(i => i.id === p.id)?.cantidad || 0;
+                  const disponible = p.stock - enCarrito;
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => setProductoDetalle(p)}
+                      className={`bg-surface-800 border border-surface-700 rounded-xl overflow-hidden cursor-pointer
+                        hover:border-surface-600 hover:-translate-y-0.5 hover:shadow-card-hover
+                        transition-all duration-200 flex flex-col
+                        ${disponible === 0 ? 'opacity-60' : ''}`}
+                    >
+                      <div className="h-44 bg-surface-700 overflow-hidden flex items-center justify-center">
+                        <ProductImage url={p.imagen_url} nombre={p.nombre} size="card" />
+                      </div>
+                      <div className="p-4 flex flex-col gap-1.5 flex-1">
+                        {p.marca && (
+                          <span className="text-[11px] text-slate-500 uppercase tracking-wide">{p.marca}</span>
+                        )}
+                        <h3 className="text-sm font-semibold text-slate-100 leading-snug m-0">{p.nombre}</h3>
+                        {p.tags?.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            {p.tags.map(t => (
+                              <span key={t.id} className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-surface-700 text-slate-400 border border-surface-600">
+                                {t.nombre}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {p.descripcion && (
+                          <p className="text-xs text-slate-400 leading-relaxed m-0 line-clamp-2">{p.descripcion}</p>
+                        )}
+                        <p className="text-xl font-bold text-cyan-400 mt-1 mb-0">${parseFloat(p.precio).toFixed(2)}</p>
+                        <StockBadge disponible={disponible} enCarrito={enCarrito} />
+                      </div>
+                      <div className="px-4 pb-4">
+                        <button
+                          onClick={e => { e.stopPropagation(); handleAgregar(p); }}
+                          disabled={disponible === 0}
+                          className={`w-full py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer border-none
+                            ${disponible === 0
+                              ? 'bg-surface-700 text-slate-500 cursor-not-allowed'
+                              : 'bg-success-500 hover:bg-success-600 text-white'}`}
+                        >
+                          {disponible === 0 ? 'Sin stock' : '+ Agregar al carrito'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {filtrados.length === 0 && !cargando && (
+                <div className="text-center py-20 text-slate-500">
+                  <svg className="w-12 h-12 mx-auto mb-4 text-surface-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-sm">Sin resultados para los filtros actuales.</p>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </main>
 
@@ -175,28 +214,32 @@ export default function Catalogo() {
         return (
           <Modal title="" onClose={() => setProductoDetalle(null)}>
             <div className="flex flex-col sm:flex-row gap-6">
-              {/* Imagen */}
               <div className="w-full sm:w-48 h-48 flex-shrink-0 bg-surface-700 rounded-xl overflow-hidden flex items-center justify-center">
                 <ProductImage url={p.imagen_url} nombre={p.nombre} size="modal" />
               </div>
-
-              {/* Detalle */}
               <div className="flex-1 flex flex-col gap-2">
                 {p.marca && (
                   <span className="text-xs text-slate-500 uppercase tracking-wide">{p.marca}</span>
                 )}
                 <h2 className="m-0 text-xl font-semibold text-slate-100">{p.nombre}</h2>
                 <p className="m-0 text-3xl font-bold text-cyan-400">${parseFloat(p.precio).toFixed(2)}</p>
+                {p.tags?.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {p.tags.map(t => (
+                      <span key={t.id} className="px-2 py-0.5 rounded-full text-xs font-medium bg-surface-700 text-slate-400 border border-surface-600">
+                        {t.nombre}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <StockBadge disponible={disp} enCarrito={enCarrito} />
               </div>
             </div>
-
             {p.descripcion && (
               <div className="mt-5 p-4 bg-surface-700 rounded-lg border-l-4 border-cyan-400/60">
                 <p className="m-0 text-sm text-slate-300 leading-relaxed">{p.descripcion}</p>
               </div>
             )}
-
             <button
               onClick={() => handleAgregar(p, true)}
               disabled={disp === 0}
