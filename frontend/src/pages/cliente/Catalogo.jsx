@@ -57,13 +57,20 @@ export default function Catalogo() {
     setCargando(true);
     const h = { headers };
     Promise.all([
-      fetch(`${API}/productos`, h).then(r => r.json()),
-      fetch(`${API}/tags`,      h).then(r => r.json()),
-    ]).then(([prods, tgs]) => {
-      setProductos(prods);
-      setTags(tgs);
+      fetch(`${API}/productos`, h),
+      fetch(`${API}/tags`,      h),
+    ]).then(async ([rProds, rTags]) => {
+      if (rProds.status === 401 || rProds.status === 403) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('rol');
+        window.location.href = '/login';
+        return;
+      }
+      const [prods, tgs] = await Promise.all([rProds.json(), rTags.json()]);
+      setProductos(Array.isArray(prods) ? prods : []);
+      setTags(Array.isArray(tgs) ? tgs : []);
       setCargando(false);
-    });
+    }).catch(() => setCargando(false));
   }, []);
 
   const mostrarToast = (texto, tipo = 'success') => {
