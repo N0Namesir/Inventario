@@ -1,6 +1,6 @@
 # Fastech Inventario
 
-Sistema de gestión de inventario y ventas con control de acceso por roles, desarrollado como proyecto escolar.
+Sistema de gestión de inventario y ventas con control de acceso por roles.
 
 ---
 
@@ -10,28 +10,117 @@ Sistema de gestión de inventario y ventas con control de acceso por roles, desa
 |------|-----------|
 | Frontend | React 19 + Vite 8 + Tailwind CSS v4 |
 | Backend | Node.js + Express 5 |
-| Base de datos | MariaDB (Docker) |
+| Base de datos | MariaDB |
 | Auth | JWT + bcrypt |
 | Uploads | Multer |
 
 ---
 
-## Arquitectura
+## Requisitos previos
+
+- **Node.js** 18 o superior → [nodejs.org](https://nodejs.org)
+- **pnpm** → `npm install -g pnpm`
+- **MariaDB** corriendo en tu sistema (puerto 3306)
+
+---
+
+## Instalación paso a paso
+
+### 1. Crear la base de datos
+
+Abre la consola de MariaDB e importa el schema:
+
+```bash
+mariadb -u root -p < database/schema.sql
+```
+
+Esto crea la base de datos `fastech_db` con todas sus tablas.
+
+> Si prefieres hacerlo dentro de la consola de MariaDB:
+> ```sql
+> SOURCE /ruta/absoluta/al/proyecto/database/schema.sql;
+> ```
+
+### 2. Configurar el backend
+
+```bash
+cd backend
+cp .env.example .env
+```
+
+Edita `.env` con tus credenciales de MariaDB:
+
+```env
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=tu_password_de_mariadb
+DB_NAME=fastech_db
+
+JWT_SECRET=cambia_esto_por_un_string_largo_y_aleatorio
+```
+
+### 3. Instalar dependencias del backend y cargar datos de prueba
+
+```bash
+cd backend
+pnpm install
+pnpm seed
+```
+
+`pnpm seed` crea los usuarios de prueba en la base de datos.
+
+### 4. Iniciar el backend
+
+```bash
+pnpm start
+```
+
+El servidor queda corriendo en `http://localhost:5000`.
+
+### 5. Instalar dependencias del frontend e iniciar
+
+Abre una **nueva terminal**:
+
+```bash
+cd frontend
+pnpm install
+pnpm dev
+```
+
+La aplicación estará disponible en `http://localhost:5173`.
+
+---
+
+## Usuarios de prueba
+
+| Rol | Email | Contraseña |
+|-----|-------|-----------|
+| superadmin | super@fastech.com | super123 |
+| admin | admin@fastech.com | admin123 |
+| cliente | cliente@fastech.com | cliente123 |
+
+---
+
+## Estructura del proyecto
 
 ```
 inventario-real/
-├── frontend/          # Vite + React
-│   └── src/
-│       ├── pages/
-│       │   ├── admin/         # Inventario, Pedidos, Reportes
-│       │   ├── cliente/       # Catálogo, Carrito, Mis Órdenes
-│       │   └── superadmin/    # Usuarios
-│       ├── components/        # Navbar, Modal, FilterSidebar, TagSelector
-│       ├── context/           # CarritoContext
-│       └── utils/             # filtrarProductos.js
-└── backend/           # Express REST API
-    ├── server.js
-    └── seed.js
+├── database/
+│   └── schema.sql          # Schema completo de la BD
+├── backend/
+│   ├── server.js           # API REST (Express)
+│   ├── seed.js             # Datos iniciales (usuarios)
+│   ├── uploads/            # Imágenes de productos
+│   └── .env.example        # Plantilla de variables de entorno
+└── frontend/
+    └── src/
+        ├── pages/
+        │   ├── admin/      # Inventario, Pedidos, Reportes
+        │   ├── cliente/    # Catálogo, Carrito, Mis Órdenes
+        │   └── superadmin/ # Usuarios
+        ├── components/     # Navbar, Modal, FilterSidebar, TagSelector
+        ├── context/        # CarritoContext
+        └── utils/          # filtrarProductos.js
 ```
 
 ---
@@ -46,70 +135,7 @@ inventario-real/
 
 ---
 
-## Primeros pasos
-
-### 1. Base de datos (Docker)
-
-```bash
-docker run -d \
-  --name fastech-db \
-  -e MYSQL_ROOT_PASSWORD=tu_password \
-  -e MYSQL_DATABASE=fastech_db \
-  -p 3306:3306 \
-  mariadb:latest
-```
-
-### 2. Backend
-
-```bash
-cd backend
-cp .env.example .env
-# Edita .env con tus credenciales
-pnpm install
-node seed.js      # Carga productos y usuarios de prueba
-node server.js
-```
-
-### 3. Frontend
-
-```bash
-cd frontend
-pnpm install
-pnpm dev
-```
-
-La app estará disponible en `http://localhost:5173`.
-
----
-
-## Variables de entorno
-
-Copia `backend/.env.example` a `backend/.env` y configura:
-
-```env
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=tu_password
-DB_NAME=fastech_db
-
-JWT_SECRET=un_string_largo_y_aleatorio
-```
-
----
-
-## Usuarios de prueba
-
-Después de ejecutar `seed.js`:
-
-| Rol | Email | Contraseña |
-|-----|-------|-----------|
-| superadmin | super@fastech.com | super123 |
-| admin | admin@fastech.com | admin123 |
-| cliente | cliente@fastech.com | cliente123 |
-
----
-
-## Funcionalidades principales
+## Funcionalidades
 
 - Catálogo de productos con filtros por tag, marca y rango de precio
 - Carrito de compras con múltiples métodos de pago
@@ -121,15 +147,20 @@ Después de ejecutar `seed.js`:
 
 ---
 
-## API — endpoints principales
+## Solución de problemas comunes
 
+**Error al conectar con la BD**  
+Verifica que MariaDB esté corriendo y que las credenciales en `.env` sean correctas.
+
+```bash
+# Comprobar que MariaDB está activo (Linux con systemd)
+sudo systemctl status mariadb
 ```
-POST   /api/auth/login
-GET    /api/productos
-POST   /api/productos
-PUT    /api/productos/:id
-DELETE /api/productos/:id
-GET    /api/pedidos
-POST   /api/pedidos
-GET    /api/usuarios          # solo superadmin
+
+**Puerto 5000 en uso**  
+Otra aplicación ocupa el puerto. Puedes cambiarlo en la última línea de `backend/server.js` y actualizar `frontend/src/config.js` acordemente.
+
+**`pnpm` no encontrado**  
+```bash
+npm install -g pnpm
 ```

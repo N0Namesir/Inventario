@@ -8,10 +8,16 @@ const badgeRol = {
   cliente:    'bg-success-500/10 text-success-500 border-success-500/30',
 };
 
+const FORM_VACIO = { nombre: '', email: '', password: '', rol: 'cliente' };
+
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [error,    setError]    = useState('');
+  const [modal,    setModal]    = useState(false);
+  const [form,     setForm]     = useState(FORM_VACIO);
+  const [guardando, setGuardando] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const token   = localStorage.getItem('token');
   const miId    = JSON.parse(atob(token.split('.')[1])).id;
@@ -35,12 +41,43 @@ export default function Usuarios() {
     }
   };
 
+  const abrirModal = () => { setForm(FORM_VACIO); setFormError(''); setModal(true); };
+  const cerrarModal = () => { setModal(false); setFormError(''); };
+
+  const crearUsuario = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    setGuardando(true);
+    try {
+      const res = await fetch(`${API}/usuarios`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) { setFormError(data.error); setGuardando(false); return; }
+      setUsuarios(prev => [...prev, data]);
+      cerrarModal();
+    } catch {
+      setFormError('Error de conexión');
+    }
+    setGuardando(false);
+  };
+
   return (
     <>
       <Navbar />
       <main className="flex-1 bg-navy-800 px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-semibold text-slate-100 mb-6">Gestión de Usuarios</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-semibold text-slate-100">Gestión de Usuarios</h2>
+            <button
+              onClick={abrirModal}
+              className="bg-cyan-400 hover:bg-cyan-300 text-navy-950 font-semibold px-4 py-2 rounded-lg text-sm transition-colors cursor-pointer"
+            >
+              + Nuevo usuario
+            </button>
+          </div>
 
           {error && (
             <p className="text-danger-400 text-sm bg-danger-500/10 border border-danger-500/30 rounded-lg px-3 py-2 mb-4">
@@ -117,6 +154,92 @@ export default function Usuarios() {
           </p>
         </div>
       </main>
+
+      {/* Modal crear usuario */}
+      {modal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
+          <div className="bg-surface-800 border border-surface-700 rounded-xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-surface-700">
+              <h3 className="text-base font-semibold text-slate-100">Nuevo usuario</h3>
+              <button onClick={cerrarModal} className="text-slate-500 hover:text-slate-300 text-xl leading-none bg-transparent border-none cursor-pointer">✕</button>
+            </div>
+
+            <form onSubmit={crearUsuario} className="px-6 py-5 flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-slate-400 font-medium">Nombre completo</label>
+                <input
+                  required
+                  value={form.nombre}
+                  onChange={e => setForm({ ...form, nombre: e.target.value })}
+                  placeholder="Ej. María González"
+                  className="input-dark"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-slate-400 font-medium">Email</label>
+                <input
+                  required
+                  type="email"
+                  value={form.email}
+                  onChange={e => setForm({ ...form, email: e.target.value })}
+                  placeholder="correo@ejemplo.com"
+                  className="input-dark"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-slate-400 font-medium">Contraseña</label>
+                <input
+                  required
+                  type="password"
+                  minLength={6}
+                  value={form.password}
+                  onChange={e => setForm({ ...form, password: e.target.value })}
+                  placeholder="Mínimo 6 caracteres"
+                  className="input-dark"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-slate-400 font-medium">Rol</label>
+                <select
+                  value={form.rol}
+                  onChange={e => setForm({ ...form, rol: e.target.value })}
+                  className="input-dark"
+                >
+                  <option value="cliente">Cliente</option>
+                  <option value="admin">Admin</option>
+                  <option value="superadmin">Superadmin</option>
+                </select>
+              </div>
+
+              {formError && (
+                <p className="text-xs text-danger-400 bg-danger-500/10 border border-danger-500/30 rounded-lg px-3 py-2 m-0">
+                  {formError}
+                </p>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={cerrarModal}
+                  className="flex-1 border border-surface-600 text-slate-400 hover:text-slate-200 py-2 rounded-lg text-sm transition-colors bg-transparent cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardando}
+                  className="flex-1 bg-cyan-400 hover:bg-cyan-300 disabled:opacity-50 text-navy-950 font-semibold py-2 rounded-lg text-sm transition-colors cursor-pointer"
+                >
+                  {guardando ? 'Creando...' : 'Crear usuario'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

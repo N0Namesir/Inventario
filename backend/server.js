@@ -14,19 +14,18 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ─── BASE DE DATOS ──────────────────────────────────────────────────────────
 
-const db = mysql.createConnection({
-    host:     process.env.DB_HOST,
-    user:     process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME
+const db = mysql.createPool({
+    host:               process.env.DB_HOST,
+    user:               process.env.DB_USER,
+    password:           process.env.DB_PASSWORD,
+    database:           process.env.DB_NAME,
+    waitForConnections: true,
+    connectionLimit:    10,
 });
 
-db.connect(err => {
-    if (err) {
-        console.error('Error al conectar con MySQL:', err.message);
-        process.exit(1);
-    }
-    console.log('Conectado a MySQL');
+db.query('SELECT 1', err => {
+    if (err) { console.error('Error al conectar con MySQL:', err.message); process.exit(1); }
+    console.log('Conectado a MySQL (pool)');
 });
 
 // ─── MULTER (subida de imágenes) ─────────────────────────────────────────────
@@ -258,6 +257,40 @@ app.get('/usuarios', verificarToken, verificarRol('superadmin'), (req, res) => {
     });
 });
 
+app.post('/usuarios', verificarToken, verificarRol('superadmin'), async (req, res) => {
+    const { nombre, email, password, rol } = req.body;
+    if (!nombre || !email || !password || !rol)
+        return res.status(400).json({ error: 'Todos los campos son requeridos' });
+    if (!['superadmin', 'admin', 'cliente'].includes(rol))
+        return res.status(400).json({ error: 'Rol inválido' });
+    if (password.length < 6)
+        return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+
+    try {
+        const hash = await bcrypt.hash(password, 10);
+        db.query(
+            'INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)',
+            [nombre.trim(), email.trim().toLowerCase(), hash, rol],
+            (err, result) => {
+                if (err) {
+                    if (err.code === 'ER_DUP_ENTRY')
+                        return res.status(409).json({ error: 'Ya existe un usuario con ese email' });
+                    return res.status(500).json({ error: 'Error del servidor' });
+                }
+                res.status(201).json({
+                    id: result.insertId,
+                    nombre: nombre.trim(),
+                    email: email.trim().toLowerCase(),
+                    rol,
+                    created_at: new Date()
+                });
+            }
+        );
+    } catch {
+        res.status(500).json({ error: 'Error del servidor' });
+    }
+});
+
 app.delete('/usuarios/:id', verificarToken, verificarRol('superadmin'), (req, res) => {
     if (parseInt(req.params.id) === req.user.id)
         return res.status(400).json({ error: 'No puedes eliminarte a ti mismo' });
@@ -302,48 +335,65 @@ app.post('/ordenes', verificarToken, verificarRol('cliente'), (req, res) => {
         return res.status(400).json({ error: 'El carrito está vacío' });
 
     const ids = items.map(i => i.producto_id);
-    db.query('SELECT * FROM productos WHERE id IN (?)', [ids], (err, productos) => {
-        if (err) return res.status(500).json({ error: 'Error del servidor' });
 
-        for (const item of items) {
-            const prod = productos.find(p => p.id === item.producto_id);
-            if (!prod) return res.status(400).json({ error: `Producto no encontrado: ${item.producto_id}` });
-            if (prod.stock < item.cantidad) return res.status(400).json({ error: `Stock insuficiente para "${prod.nombre}"` });
-        }
+    db.getConnection((err, conn) => {
+        if (err) return res.status(500).json({ error: 'Error de conexión' });
 
-        const total = items.reduce((sum, item) => {
-            const prod = productos.find(p => p.id === item.producto_id);
-            return sum + parseFloat(prod.precio) * item.cantidad;
-        }, 0);
+        const abort = (msg, status = 500) =>
+            conn.rollback(() => { conn.release(); res.status(status).json({ error: msg }); });
 
-        db.query('INSERT INTO ordenes (usuario_id, total) VALUES (?, ?)', [req.user.id, total.toFixed(2)], (err, result) => {
-            if (err) return res.status(500).json({ error: 'Error del servidor' });
-            const ordenId = result.insertId;
+        conn.beginTransaction(err => {
+            if (err) { conn.release(); return res.status(500).json({ error: 'Error del servidor' }); }
 
-            const itemValues = items.map(item => {
-                const prod = productos.find(p => p.id === item.producto_id);
-                return [ordenId, item.producto_id, prod.nombre, item.cantidad, prod.precio];
-            });
+            conn.query('SELECT * FROM productos WHERE id IN (?) FOR UPDATE', [ids], (err, productos) => {
+                if (err) return abort('Error del servidor');
 
-            db.query(
-                'INSERT INTO orden_items (orden_id, producto_id, nombre_producto, cantidad, precio_unitario) VALUES ?',
-                [itemValues],
-                (err) => {
-                    if (err) return res.status(500).json({ error: 'Error del servidor' });
+                for (const item of items) {
+                    const prod = productos.find(p => p.id === item.producto_id);
+                    if (!prod) return abort(`Producto no encontrado: ${item.producto_id}`, 400);
+                    if (prod.stock < item.cantidad) return abort(`Stock insuficiente para "${prod.nombre}"`, 400);
+                }
 
-                    let pendientes = items.length;
-                    let huboError = false;
-                    items.forEach(item => {
-                        db.query('UPDATE productos SET stock = stock - ? WHERE id = ?', [item.cantidad, item.producto_id], (err) => {
-                            if (err) huboError = true;
-                            if (--pendientes === 0) {
-                                if (huboError) return res.status(500).json({ error: 'Error actualizando stock' });
-                                res.json({ id: ordenId, total: total.toFixed(2), estado: 'pendiente' });
-                            }
+                const total = items.reduce((sum, item) => {
+                    const prod = productos.find(p => p.id === item.producto_id);
+                    return sum + parseFloat(prod.precio) * item.cantidad;
+                }, 0);
+
+                conn.query('INSERT INTO ordenes (usuario_id, total) VALUES (?, ?)', [req.user.id, total.toFixed(2)], (err, result) => {
+                    if (err) return abort('Error del servidor');
+                    const ordenId = result.insertId;
+
+                    const itemValues = items.map(item => {
+                        const prod = productos.find(p => p.id === item.producto_id);
+                        return [ordenId, item.producto_id, prod.nombre, item.cantidad, prod.precio];
+                    });
+
+                    conn.query('INSERT INTO orden_items (orden_id, producto_id, nombre_producto, cantidad, precio_unitario) VALUES ?', [itemValues], (err) => {
+                        if (err) return abort('Error del servidor');
+
+                        let pendientes = items.length;
+                        let fallo = false;
+
+                        items.forEach(item => {
+                            conn.query(
+                                'UPDATE productos SET stock = stock - ? WHERE id = ? AND stock >= ?',
+                                [item.cantidad, item.producto_id, item.cantidad],
+                                (err, result) => {
+                                    if (err || result.affectedRows === 0) fallo = true;
+                                    if (--pendientes === 0) {
+                                        if (fallo) return abort('Stock insuficiente (conflicto concurrente)', 409);
+                                        conn.commit(err => {
+                                            conn.release();
+                                            if (err) return res.status(500).json({ error: 'Error al confirmar la orden' });
+                                            res.json({ id: ordenId, total: total.toFixed(2), estado: 'pendiente' });
+                                        });
+                                    }
+                                }
+                            );
                         });
                     });
-                }
-            );
+                });
+            });
         });
     });
 });
@@ -385,20 +435,47 @@ app.put('/ordenes/:id/estado', verificarToken, verificarRol('admin', 'superadmin
         return res.status(400).json({ error: 'Estado inválido' });
 
     if (estado === 'cancelada') {
-        db.query('SELECT * FROM orden_items WHERE orden_id = ?', [req.params.id], (err, items) => {
-            if (err) return res.status(500).json({ error: 'Error del servidor' });
-            let pendientes = items.length || 1;
-            const actualizar = () => {
-                if (--pendientes === 0) {
-                    db.query('UPDATE ordenes SET estado = ? WHERE id = ?', [estado, req.params.id], (err) => {
-                        if (err) return res.status(500).json({ error: 'Error del servidor' });
-                        res.json({ mensaje: 'Estado actualizado' });
+        db.getConnection((err, conn) => {
+            if (err) return res.status(500).json({ error: 'Error de conexión' });
+
+            const abort = () =>
+                conn.rollback(() => { conn.release(); res.status(500).json({ error: 'Error del servidor' }); });
+
+            conn.beginTransaction(err => {
+                if (err) { conn.release(); return res.status(500).json({ error: 'Error del servidor' }); }
+
+                conn.query('SELECT * FROM orden_items WHERE orden_id = ?', [req.params.id], (err, items) => {
+                    if (err) return abort();
+
+                    conn.query('UPDATE ordenes SET estado = ? WHERE id = ?', [estado, req.params.id], (err) => {
+                        if (err) return abort();
+
+                        if (items.length === 0) {
+                            return conn.commit(err => {
+                                conn.release();
+                                if (err) return res.status(500).json({ error: 'Error del servidor' });
+                                res.json({ mensaje: 'Estado actualizado' });
+                            });
+                        }
+
+                        let pendientes = items.length;
+                        let fallo = false;
+
+                        items.forEach(item => {
+                            conn.query('UPDATE productos SET stock = stock + ? WHERE id = ?', [item.cantidad, item.producto_id], (err) => {
+                                if (err) fallo = true;
+                                if (--pendientes === 0) {
+                                    if (fallo) return abort();
+                                    conn.commit(err => {
+                                        conn.release();
+                                        if (err) return res.status(500).json({ error: 'Error del servidor' });
+                                        res.json({ mensaje: 'Estado actualizado' });
+                                    });
+                                }
+                            });
+                        });
                     });
-                }
-            };
-            if (items.length === 0) { actualizar(); return; }
-            items.forEach(item => {
-                db.query('UPDATE productos SET stock = stock + ? WHERE id = ?', [item.cantidad, item.producto_id], actualizar);
+                });
             });
         });
     } else {

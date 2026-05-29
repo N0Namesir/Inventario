@@ -11,10 +11,15 @@ import Reportes from './pages/superadmin/Reportes';
 import { CarritoProvider } from './context/CarritoContext';
 
 function RootRedirect() {
-  const rol = localStorage.getItem('rol');
-  if (rol === 'cliente')    return <Navigate to="/cliente/catalogo" />;
-  if (rol === 'admin')      return <Navigate to="/admin/inventario" />;
-  if (rol === 'superadmin') return <Navigate to="/superadmin/usuarios" />;
+  try {
+    const token = localStorage.getItem('token');
+    const { rol, exp } = JSON.parse(atob(token.split('.')[1]));
+    if (exp * 1000 > Date.now()) {
+      if (rol === 'cliente')    return <Navigate to="/cliente/catalogo" />;
+      if (rol === 'admin')      return <Navigate to="/admin/inventario" />;
+      if (rol === 'superadmin') return <Navigate to="/superadmin/usuarios" />;
+    }
+  } catch {}
   return <Navigate to="/login" />;
 }
 

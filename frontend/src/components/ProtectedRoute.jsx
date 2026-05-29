@@ -1,24 +1,20 @@
 import { Navigate } from 'react-router-dom';
 
-function tokenValido(token) {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.exp * 1000 > Date.now();
-  } catch {
-    return false;
-  }
+function parseToken(token) {
+  try { return JSON.parse(atob(token.split('.')[1])); }
+  catch { return null; }
 }
 
 export default function ProtectedRoute({ children, roles }) {
-  const token = localStorage.getItem('token');
-  const rol   = localStorage.getItem('rol');
+  const token   = localStorage.getItem('token');
+  const payload = token ? parseToken(token) : null;
 
-  if (!token || !tokenValido(token)) {
+  if (!payload || payload.exp * 1000 <= Date.now()) {
     localStorage.removeItem('token');
     localStorage.removeItem('rol');
     return <Navigate to="/login" />;
   }
-  if (!roles.includes(rol)) return <Navigate to="/" />;
+  if (!roles.includes(payload.rol)) return <Navigate to="/" />;
 
   return children;
 }
